@@ -1,0 +1,31 @@
+sudo: false
+language: java
+
+before_install:
+
+install: true
+
+script:
+  - # Create a new Solace Message Broker in GCP
+  - echo "{\"name\":\"TestService-${CURENT_DATE}\",\"datacenterId\":\"aws-us-east-1b\",\"partitionId\":\"default\",\"servicePlanId\":\"enterprise-nano-plan\",\"adminState\":\"start\"}" > data.json
+  - newBroker=`curl --request POST --url "https://console.solace.cloud/api/v0/services"  -H "Authorization:Bearer ${SOLACE_CLOUD_TOKEN}"  --header "Content-Type:application/json" --data @data.json`
+  - serviceId=`jq '.data.serviceId' <<< $newBroker`
+  - serviceId=${serviceId//\"}
+  - # Validate Solace Message Broker is up and extract credentials
+  - while [ "\"completed\"" != "$(jq .data.adminProgress <<< `curl -H "Authorization:Bearer ${SOLACE_CLOUD_TOKEN}" --url "https://console.solace.cloud/api/v0/services/${serviceId}"`)"  ] ; do echo "`date` Waiting for service up"; sleep 5; done
+  - serviceInfo=`curl -H "Authorization:Bearer ${SOLACE_CLOUD_TOKEN}" --url "https://console.solace.cloud/api/v0/services/${serviceId}"`
+  - SOLACE_URI=`jq .data.messagingProtocols[4].endPoints[0].uris[0] <<< $serviceInfo`
+  - SOLACE_URI=${SOLACE_URI//\"}
+  - USERNAME=`jq .data.messagingProtocols[4].username <<< $serviceInfo`
+  - USERNAME=${USERNAME//\"}
+  - PASSWORD=`jq .data.messagingProtocols[4].password <<< $serviceInfo`
+  - PASSWORD=${PASSWORD//\"}
+  - SOLACE_VPN=`jq .data.msgVpnAttributes.vpnName <<< $serviceInfo`
+  - SOLACE_VPN=${SOLACE_VPN//\"}
+  - mvn -e compile exec:java -Dexec.mainClass=org.apache.beam.examples.SolaceRecordTest -Dexec.args="--output=DR100A --cip=${SOLACE_URI} --cu="${USERNAME}@${SOLACE_VPN}" --cp=${PASSWORD} --sql=Q/fx-001" -Pdataflow-runner
+
+after_success:
+  - echo "Test Success - Branch( $TRAVIS_BRANCH ) Pull Request( $TRAVIS_PULL_REQUEST ) Tag( $TRAVIS_TAG )"
+
+after_script:
+ - curl --request DELETE --url "https://console.solace.cloud/api/v0/services/${serviceId}"  -H "Authorization:Bearer ${SOLACE_CLOUD_TOKEN}"  --header 'Content-Type:application/json'
