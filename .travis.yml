@@ -18,15 +18,13 @@ script:
   - serviceInfo=`curl -H "Authorization:Bearer ${SOLACE_CLOUD_TOKEN}" --url "https://console.solace.cloud/api/v0/services/${serviceId}"`
   - SOLACE_URI=`jq .data.messagingProtocols[4].endPoints[0].uris[0] <<< $serviceInfo`
   - SOLACE_URI=${SOLACE_URI//\"}
-  - echo ${SOLACE_URI}
   - USERNAME=`jq .data.messagingProtocols[4].username <<< $serviceInfo`
   - USERNAME=${USERNAME//\"}
-  - echo ${USERNAME}
   - PASSWORD=`jq .data.messagingProtocols[4].password <<< $serviceInfo`
   - PASSWORD=${PASSWORD//\"}
-  - echo ${PASSWORD}
   - SOLACE_VPN=`jq .data.msgVpnAttributes.vpnName <<< $serviceInfo`
   - SOLACE_VPN=${SOLACE_VPN//\"}
+  - ping -c 10 ${SOLACE_URI}
   - mvn -e compile exec:java -Dexec.mainClass=org.apache.beam.examples.SolaceRecordTest -Dexec.args="--output=DR100A --cip=${SOLACE_URI} --cu="${USERNAME}@${SOLACE_VPN}" --cp=${PASSWORD} --sql=Q/fx-001" -Pdataflow
 
 after_success:
