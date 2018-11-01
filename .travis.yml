@@ -7,7 +7,8 @@ install: true
 
 script:
   - # Create a new Solace Message Broker in GCP
-  - echo "{\"name\":\"TestService-${CURENT_DATE}\",\"datacenterId\":\"aws-us-east-1b\",\"partitionId\":\"default\",\"servicePlanId\":\"enterprise-nano-plan\",\"adminState\":\"start\"}" > data.json
+  - CURENT_DATE=`date +%s`
+  - echo "{\"name\":\"TestService-${CURENT_DATE}\",\"datacenterId\":\"gcp-us-central1-a\",\"partitionId\":\"default\",\"servicePlanId\":\"enterprise-nano-plan\",\"adminState\":\"start\"}" > data.json
   - newBroker=`curl --request POST --url "https://console.solace.cloud/api/v0/services"  -H "Authorization:Bearer ${SOLACE_CLOUD_TOKEN}"  --header "Content-Type:application/json" --data @data.json`
   - echo ${newBroker}
   - serviceId=`jq '.data.serviceId' <<< $newBroker`
