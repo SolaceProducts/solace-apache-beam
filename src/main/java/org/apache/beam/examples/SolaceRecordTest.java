@@ -30,8 +30,14 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -137,11 +143,26 @@ public class SolaceRecordTest {
     PCollection<String> next = input.apply(ParDo.of(new DoFn<SolaceTextRecord, String>() {
       @ProcessElement
       public void processElement(@Element SolaceTextRecord record, OutputReceiver<String> receiver) {
-        LOG.debug("Destination: {}", record.getDestination());
         receiver.output(record.getPayload());;
       }
-  
     }));
+
+    PCollection<String> windowedWords = next.apply(
+        Window.<String>into(FixedWindows.of(Duration.standardSeconds(20)))
+          .triggering(AfterWatermark.pastEndOfWindow())
+          .withAllowedLateness(Duration.standardSeconds(10))
+          .discardingFiredPanes());
+
+    PCollection<KV<String, Long>> wordCounts = windowedWords.apply(new WordCount.CountWords());
+
+    wordCounts
+        .apply(MapElements.via(new WordCount.FormatAsTextFn()))
+        .apply(ParDo.of(new DoFn<String, String>() {
+          @ProcessElement
+          public void processElement(@Element String e) {
+            LOG.info("***" + e);
+          }
+        }));
 
     PipelineResult result = pipeline.run();
     try {
