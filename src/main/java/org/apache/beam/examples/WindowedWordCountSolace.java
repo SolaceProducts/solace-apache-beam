@@ -114,6 +114,11 @@ public class WindowedWordCountSolace {
               @Default.Boolean(false)
               boolean getAuto();
               void setAuto(boolean value);
+
+              @Description("The timeout in milliseconds while try to receive a messages from Solace broker")
+              @Default.Integer(100)
+              int getTimeout();
+              void setTimeout(int timeoutInMillis);;
             }
 
   static void runWindowedWordCount(Options options) throws Exception {
@@ -134,8 +139,9 @@ public class WindowedWordCountSolace {
                   options.getCip(), queues)
               .withUsername(options.getCu())
               .withPassword(options.getCp())
-              .withAutoAck(options.getAuto()))
-            );
+              .withAutoAck(options.getAuto())
+              .withTimeout(options.getTimeout()))
+          );
 
     /*
      * Concept #3: Window into fixed windows. The fixed window size for this example defaults to 1

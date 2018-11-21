@@ -115,6 +115,11 @@ public class SolaceRecordTest {
               @Default.Boolean(false)
               boolean getAuto();
               void setAuto(boolean value);
+
+              @Description("The timeout in milliseconds while try to receive a messages from Solace broker")
+              @Default.Integer(100)
+              int getTimeout();
+              void setTimeout(int timeoutInMillis);;
             }
 
   static void runWindowedWordCount(Options options) throws Exception {
@@ -135,7 +140,8 @@ public class SolaceRecordTest {
                   options.getCip(), queues)
                 .withUsername(options.getCu())
                 .withPassword(options.getCp())
-                .withAutoAck(options.getAuto()))
+                .withAutoAck(options.getAuto())
+                .withTimeout(options.getTimeout()))
               .withCoder(SolaceTextRecord.getCoder())
               .withMessageMapper(SolaceTextRecord.getMapper())
             );

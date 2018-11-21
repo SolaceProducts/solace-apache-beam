@@ -112,8 +112,10 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 
     @Override
     public boolean advance() throws IOException {
+        SolaceIO.ConnectionConfiguration cc = source.getSpec().connectionConfiguration();
+
         try {
-            BytesXMLMessage msg = flowReceiver.receive(1000);  // wait max 1 second for a message
+            BytesXMLMessage msg = flowReceiver.receive(cc.getTimeoutInMillis());
 
             if (msg == null) {
                 return false;

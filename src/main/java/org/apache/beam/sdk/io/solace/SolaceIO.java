@@ -1,24 +1,19 @@
 package org.apache.beam.sdk.io.solace;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
 import com.solacesystems.jcsmp.*;
-import com.solacesystems.jcsmp.Queue;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
-import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.*;
 
@@ -82,6 +77,9 @@ public class SolaceIO {
         
         abstract boolean isAutoAck();
 
+        // The timeout in milliseconds while try to receive a messages from Solace broker
+        abstract int    getTimeoutInMillis();
+
         abstract Builder builder();
 
         @AutoValue.Builder
@@ -101,6 +99,8 @@ public class SolaceIO {
 
             abstract Builder setAutoAck(boolean autoAck);
 
+            abstract Builder setTimeoutInMillis(int timeoutInMillis);
+
             abstract ConnectionConfiguration build();
         }
 
@@ -112,6 +112,7 @@ public class SolaceIO {
                     .setHost(host)
                     .setQueues(queues)
                     .setAutoAck(false)
+                    .setTimeoutInMillis(100) // the default value of time out is 0.1 second
                     .build();
         }
 
@@ -137,6 +138,10 @@ public class SolaceIO {
 
         public ConnectionConfiguration withAutoAck(boolean autoAck) {
             return builder().setAutoAck(autoAck).build();
+        }
+
+        public ConnectionConfiguration withTimeout(int timeoutInMillis) {
+            return builder().setTimeoutInMillis(timeoutInMillis).build();
         }
 
         private void populateDisplayData(DisplayData.Builder builder) {
