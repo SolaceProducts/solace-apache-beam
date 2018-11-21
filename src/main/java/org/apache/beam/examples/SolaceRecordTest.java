@@ -140,7 +140,8 @@ public class SolaceRecordTest {
                   options.getCip(), queues)
                 .withUsername(options.getCu())
                 .withPassword(options.getCp())
-                .withAutoAck(options.getAuto()))
+                .withAutoAck(options.getAuto())
+                .withTimeout(options.getTimeout()))
               .withCoder(SolaceTextRecord.getCoder())
               .withMessageMapper(SolaceTextRecord.getMapper())
             );
