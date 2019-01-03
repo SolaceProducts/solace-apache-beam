@@ -86,7 +86,6 @@ public class SolaceIO {
         abstract static class Builder {
             abstract Builder setHost(String host);
 
-
             abstract Builder setQueues(List<String> queues);
 
             abstract Builder setClientName(String clientName);

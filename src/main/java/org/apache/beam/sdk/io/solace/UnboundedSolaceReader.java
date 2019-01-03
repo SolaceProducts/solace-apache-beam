@@ -8,13 +8,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import org.w3c.dom.Document;
+import org.w3c.dom.Node;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.xpath.XPathFactory;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPath;
+import java.io.ByteArrayInputStream;
 import java.util.LinkedList;
 import java.util.NoSuchElementException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Unbounded Reader to read messages from a Solace Router.
@@ -31,6 +38,8 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
     private FlowReceiver flowReceiver;
     private boolean isAutoAck;
     private String clientName;
+    private Topic SEMPTopic;
+    private String SEMPVersion;
 
     private T current;
     private Instant currentTimestamp;
@@ -52,6 +61,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
     public UnboundedSolaceReader(UnboundedSolaceSource<T> source) {
         this.source = source;
         this.current = null;
+        SEMPVersion = "soltr/8_13";
     }
 
     @Override
@@ -72,6 +82,10 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
             session = JCSMPFactory.onlyInstance().createSession(properties);
             clientName = (String)session.getProperty(JCSMPProperties.CLIENT_NAME);
             session.connect();
+
+            String routerName = (String) session.getCapability(CapabilityType.PEER_ROUTER_NAME);
+			final String SEMP_TOPIC_STRING = String.format("#SEMP/%s/SHOW", routerName);
+			SEMPTopic = JCSMPFactory.onlyInstance().createTopic(SEMP_TOPIC_STRING);
 
             // do NOT provision the queue, so "Unknown Queue" exception will be threw if the
             // queue is not existed already
@@ -235,5 +249,47 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
     @Override
     public UnboundedSolaceSource<T> getCurrentSource() {
         return source;
+    }
+
+    public long queryQueueBytes (String queueName, String VPNName) {
+        long queueBytes = 0;
+        String SEMP_SHOW_QUEUE = "<rpc semp-version=\"" + SEMPVersion + "\">";
+        SEMP_SHOW_QUEUE +="<show><queue><name>" + queueName + "</name>";
+		SEMP_SHOW_QUEUE +="<vpn-name>" + VPNName + "</vpn-name></queue></show></rpc>";
+        try {
+            Requestor requestor = session.createRequestor();
+            BytesXMLMessage requestMsg = JCSMPFactory.onlyInstance().createMessage(BytesXMLMessage.class);
+            requestMsg.writeAttachment(SEMP_SHOW_QUEUE.getBytes());
+            BytesXMLMessage replyMsg = requestor.request(requestMsg, 5000, SEMPTopic);
+            ByteArrayInputStream input;
+            byte[] bytes = new byte[replyMsg.getAttachmentContentLength()];
+            replyMsg.readAttachmentBytes(bytes);
+            input =  new ByteArrayInputStream(bytes);
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder builder = factory.newDocumentBuilder();
+            Document doc = builder.parse(input);
+            XPath xPath =  XPathFactory.newInstance().newXPath();
+            String expression = "/rpc-reply/rpc/show/queue/queues/queue/info/num-messages-spooled";
+            Node node = (Node) xPath.compile(expression).evaluate(
+                doc, XPathConstants.NODE);
+            queueBytes=Long.parseLong(node.getTextContent());
+        } catch (JCSMPException ex ) {
+            LOG.error("Encountered a JCSMPException querying queue depth" + ex.getMessage());
+            return UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
+        } catch (Exception ex) {
+            LOG.error("Encountered a Parser Exception querying queue depth" + ex.toString());
+            return UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;           
+        }
+        return queueBytes;
+    }
+
+    @Override
+    public long getSplitBacklogBytes() {
+      long backlogBytes = 0;
+      long queuBacklog = queryQueueBytes(source.getQueueName(), source.getVPNName());
+      if (queuBacklog == UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN) {
+        return UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
+      }
+      return backlogBytes;
     }
 }
