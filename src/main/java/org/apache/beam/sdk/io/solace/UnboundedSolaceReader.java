@@ -35,6 +35,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 
     private final UnboundedSolaceSource<T> source;
     private JCSMPSession session;
+    private XMLMessageProducer prod;
     private FlowReceiver flowReceiver;
     private boolean isAutoAck;
     private String clientName;
@@ -57,6 +58,18 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
      */
     private BlockingQueue<BytesXMLMessage> safe2ackQueue = new LinkedBlockingQueue<BytesXMLMessage>();
 
+    public class PrintingPubCallback implements JCSMPStreamingPublishEventHandler {
+        public void handleError(String messageID, JCSMPException cause, long timestamp) {
+                LOG.error("Error occurred for Solace queue depth request message: " + messageID);
+                cause.printStackTrace();
+        }
+
+        // This method is only invoked for persistent and non-persistent
+        // messages.
+        public void responseReceived(String messageID) {
+            LOG.error("Unexpected response to Solace queue depth request message: " + messageID);
+        }
+}
 
     public UnboundedSolaceReader(UnboundedSolaceSource<T> source) {
         this.source = source;
@@ -66,6 +79,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 
     @Override
     public boolean start() throws IOException {
+        LOG.info("Starting UnboundSolaceReader for Solace queue: {} ...", source.getQueueName());
         SolaceIO.Read<T> spec = source.getSpec();
         try {
             SolaceIO.ConnectionConfiguration cc = source.getSpec().connectionConfiguration();
@@ -80,6 +94,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
             }
 
             session = JCSMPFactory.onlyInstance().createSession(properties);
+            prod = session.getMessageProducer(new PrintingPubCallback());
             clientName = (String)session.getProperty(JCSMPProperties.CLIENT_NAME);
             session.connect();
 
@@ -126,11 +141,13 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 
     @Override
     public boolean advance() throws IOException {
+     //   LOG.debug("Advancing Solace session [{}] on queue[{}]..."
+     //       , clientName
+     //       , source.getQueueName()
+     //   );
         SolaceIO.ConnectionConfiguration cc = source.getSpec().connectionConfiguration();
-
         try {
             BytesXMLMessage msg = flowReceiver.receive(cc.getTimeoutInMillis());
-
             if (msg == null) {
                 return false;
             }
@@ -274,10 +291,10 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
                 doc, XPathConstants.NODE);
             queueBytes=Long.parseLong(node.getTextContent());
         } catch (JCSMPException ex ) {
-            LOG.error("Encountered a JCSMPException querying queue depth" + ex.getMessage());
+            LOG.error("Encountered a JCSMPException querying queue depth: {}", ex.getMessage());
             return UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
         } catch (Exception ex) {
-            LOG.error("Encountered a Parser Exception querying queue depth" + ex.toString());
+            LOG.error("Encountered a Parser Exception querying queue depth: {}", ex.toString());
             return UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;           
         }
         return queueBytes;
@@ -285,11 +302,17 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 
     @Override
     public long getSplitBacklogBytes() {
+      LOG.info("Enter getSplitBacklogBytes()");
       long backlogBytes = 0;
       long queuBacklog = queryQueueBytes(source.getQueueName(), source.getVPNName());
       if (queuBacklog == UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN) {
+        LOG.error("getSplitBacklogBytes() unable to read bytes from: {}", 
+            source.getQueueName());
         return UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
       }
+      LOG.info("getSplitBacklogBytes() Reporting backlog bytes of: {} from queue {}", 
+        Long.toString(backlogBytes), 
+        source.getQueueName());
       return backlogBytes;
     }
 }
