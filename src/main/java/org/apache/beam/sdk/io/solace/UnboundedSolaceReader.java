@@ -302,7 +302,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 
     @Override
     public long getSplitBacklogBytes() {
-      LOG.info("Enter getSplitBacklogBytes()");
+      LOG.debug("Enter getSplitBacklogBytes()");
       long backlogBytes = 0;
       long queuBacklog = queryQueueBytes(source.getQueueName(), source.getVPNName());
       if (queuBacklog == UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN) {
@@ -310,7 +310,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
             source.getQueueName());
         return UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
       }
-      LOG.info("getSplitBacklogBytes() Reporting backlog bytes of: {} from queue {}", 
+      LOG.debug("getSplitBacklogBytes() Reporting backlog bytes of: {} from queue {}", 
         Long.toString(backlogBytes), 
         source.getQueueName());
       return backlogBytes;
