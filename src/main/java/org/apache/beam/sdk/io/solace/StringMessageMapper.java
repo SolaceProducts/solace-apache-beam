@@ -1,6 +1,7 @@
 package org.apache.beam.sdk.io.solace;
 
 import com.solacesystems.jcsmp.BytesXMLMessage;
+
 import java.nio.charset.StandardCharsets;
 
 public class StringMessageMapper implements SolaceIO.MessageMapper<String> {
