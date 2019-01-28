@@ -8,14 +8,13 @@ install: true
 script:
   - # Create a new Solace Message Broker in GCP
   - CURENT_DATE=`date +%s`
- # - echo "{\"name\":\"TestService-${CURENT_DATE}\",\"datacenterId\":\"gcp-us-central1-a\",\"partitionId\":\"default\",\"servicePlanId\":\"enterprise-nano-plan\",\"adminState\":\"start\"}" > data.json
- # - newBroker=`curl --request POST --url "https://console.solace.cloud/api/v0/services"  -H "Authorization:Bearer ${SOLACE_CLOUD_TOKEN}"  --header "Content-Type:application/json" --data @data.json`
- # - echo ${newBroker}
- # - serviceId=`jq '.data.serviceId' <<< $newBroker`
- # - serviceId=${serviceId//\"}
- # - # Validate Solace Message Broker is up and extract credentials
- # - while [ "\"completed\"" != "$(jq .data.adminProgress <<< `curl -H "Authorization:Bearer ${SOLACE_CLOUD_TOKEN}" --url "https://console.solace.cloud/api/v0/services/${serviceId}"`)"  ] ; do echo "`date` Waiting for service up"; sleep 5; done
-  - serviceId=7jh6pyechp
+  - echo "{\"name\":\"TestService-${CURENT_DATE}\",\"datacenterId\":\"gcp-us-central1-a\",\"partitionId\":\"default\",\"servicePlanId\":\"enterprise-nano-plan\",\"adminState\":\"start\"}" > data.json
+  - newBroker=`curl --request POST --url "https://console.solace.cloud/api/v0/services"  -H "Authorization:Bearer ${SOLACE_CLOUD_TOKEN}"  --header "Content-Type:application/json" --data @data.json`
+  - echo ${newBroker}
+  - serviceId=`jq '.data.serviceId' <<< $newBroker`
+  - serviceId=${serviceId//\"}
+  - # Validate Solace Message Broker is up and extract credentials
+  - while [ "\"completed\"" != "$(jq .data.adminProgress <<< `curl -H "Authorization:Bearer ${SOLACE_CLOUD_TOKEN}" --url "https://console.solace.cloud/api/v0/services/${serviceId}"`)"  ] ; do echo "`date` Waiting for service up"; sleep 5; done
   - serviceInfo=`curl -H "Authorization:Bearer ${SOLACE_CLOUD_TOKEN}" --url "https://console.solace.cloud/api/v0/services/${serviceId}"`
   - SOLACE_URI=`jq .data.messagingProtocols[4].endPoints[0].uris[0] <<< $serviceInfo`
   - SOLACE_URI=${SOLACE_URI//\"}
