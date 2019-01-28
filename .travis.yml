@@ -24,11 +24,11 @@ script:
   - PASSWORD=${PASSWORD//\"}
   - SOLACE_VPN=`jq .data.msgVpnAttributes.vpnName <<< $serviceInfo`
   - SOLACE_VPN=${SOLACE_VPN//\"}
-  - MGMT_USERNAME=`jq '.data.managementProtocols[] | select(.name == "SEMP") | .username'`
+  - MGMT_USERNAME=`jq '.data.managementProtocols[] | select(.name == "SEMP") | .username' <<< $serviceInfo`
   - MGMT_USERNAME=${MGMT_USERNAME//\"}
-  - MGMT_PASSWORD=`jq '.data.managementProtocols[] | select(.name == "SEMP") | .password'`
+  - MGMT_PASSWORD=`jq '.data.managementProtocols[] | select(.name == "SEMP") | .password <<< $serviceInfo`
   - MGMT_PASSWORD=${MGMT_PASSWORD//\"}
-  - MGMT_URI=`jd '.data.managementProtocols[] | select(.name == "Secured SEMP Config") | .endPoints[] | select(.name == "SEMP Config") | .uris[0]'`
+  - MGMT_URI=`jd '.data.managementProtocols[] | select(.name == "Secured SEMP Config") | .endPoints[] | select(.name == "SEMP Config") | .uris[0]' <<< $serviceInfo`
   - MGMT_URI=${MGMT_URI//\"}
   - curl -X POST -H "content-type:application/json" -u ${MGMT_USERNAME}:${MGMT_PASSWORD} ${MGMT_URI}/msgVpns/msgvpn-${SOLACE_VPN}/queues -d '{"queueName":"Q/fx-001","egressEnabled":true,"ingressEnabled":true,"permission":"delete"}'
   - curl -O https://sftp.solace.com/download/SDKPERF_C_LINUX64
