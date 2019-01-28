@@ -27,6 +27,10 @@ script:
   - PING_HOST=`echo ${SOLACE_URI} | cut -d ':' -f 2`
   - PING_HOST=${PING_HOST:2}
   - ping -c 10 ${PING_HOST}
+  - curl -O https://sftp.solace.com/download/SDKPERF_C_LINUX64
+  - tar -xvf SDKPERF_C_LINUX64
+  - pubSubTools/sdkperf_c --cip=${SOLACE_URI} --cu="${USERNAME}@${SOLACE_VPN}" --cp=${PASSWORD} -mn=100000 -mr=100000 -msa=10 -ptl=t1 -stl=t1 | grep "Total Messages"
+
   - mvn -e compile exec:java -Dexec.mainClass=org.apache.beam.examples.SolaceRecordTest -Dexec.args="--output=DR100A --cip=${SOLACE_URI} --cu="${USERNAME}@${SOLACE_VPN}" --cp=${PASSWORD} --sql=Q/fx-001" -Pdataflow
 
 after_success:
