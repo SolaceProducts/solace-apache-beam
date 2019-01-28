@@ -30,10 +30,10 @@ script:
   - MGMT_PASSWORD=${MGMT_PASSWORD//\"}
   - MGMT_URI=`jq '.data.managementProtocols[] | select(.name == "SEMP") | .endPoints[] | select(.name == "Secured SEMP Config") | .uris[0]' <<< $serviceInfo`
   - MGMT_URI=${MGMT_URI//\"}
-  - curl -X POST -H "content-type:application/json" -u ${MGMT_USERNAME}:${MGMT_PASSWORD} ${MGMT_URI}/msgVpns/msgvpn-${SOLACE_VPN}/queues -d '{"queueName":"Q/fx-001","egressEnabled":true,"ingressEnabled":true,"permission":"delete"}'
+  - curl -X POST -H "content-type:application/json" -u ${MGMT_USERNAME}:${MGMT_PASSWORD} ${MGMT_URI}/msgVpns/${SOLACE_VPN}/queues -d '{"queueName":"Q/fx-001","egressEnabled":true,"ingressEnabled":true,"permission":"delete"}'
   - curl -O https://sftp.solace.com/download/SDKPERF_C_LINUX64
   - tar -xvf SDKPERF_C_LINUX64
-  - pubSubTools/sdkperf_c -cip=${SOLACE_URI} -cu="${USERNAME}@${SOLACE_VPN}" -cp=${PASSWORD} -mn=100 -mr=10 -msa=10 -ptl=Q/fx-001 -stl=Q/fx-001 | grep "Total Messages"
+  - pubSubTools/sdkperf_c -cip=${SOLACE_URI} -cu="${USERNAME}@${SOLACE_VPN}" -cp=${PASSWORD} -mt=persistent -mn=100 -mr=10 -msa=10 -pql=Q/fx-001 -sql=Q/fx-001 | grep "Total Messages"
   - mvn -e compile exec:java -Dexec.mainClass=org.apache.beam.examples.SolaceRecordTest -Dexec.args="--output=DR100A --cip=${SOLACE_URI} --cu="${USERNAME}@${SOLACE_VPN}" --cp=${PASSWORD} --sql=Q/fx-001" -Pdataflow
 
 after_success:
