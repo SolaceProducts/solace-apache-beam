@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/SolaceLabs/solace-beam-integration.svg?branch=master)](https://travis-ci.org/SolaceLabs/solace-beam-integration)
+[![Build Status](https://travis-ci.org/SolaceLabs/solace-beam-integration.svg?branch=development)](https://travis-ci.org/SolaceLabs/solace-beam-integration)
 
 # solace-beam-integration
 
@@ -8,7 +8,7 @@ This repository provides a solution which allows applications connected to a Sol
 
 Consider the following diagram:
 
-![Architecture Overview](images/overview.png)
+![Architecture Overview](images/Overview.png)
 
 It does not matter if the application communicates with the Solace PubSub+ broker via a REST POST or AMQP, JMS or MQTT message, it can be sent streaming to Apache Beam for further processing by it's data runners and further on to other IO connectors such as BigQuery or Apache Cassandra, etc.
 
