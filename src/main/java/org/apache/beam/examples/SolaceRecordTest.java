@@ -154,9 +154,9 @@ public class SolaceRecordTest {
     }));
 
     PCollection<String> windowedWords = next.apply(
-        Window.<String>into(FixedWindows.of(Duration.standardSeconds(20)))
+        Window.<String>into(FixedWindows.of(Duration.standardSeconds(1)))
           .triggering(AfterWatermark.pastEndOfWindow())
-          .withAllowedLateness(Duration.standardSeconds(10))
+          .withAllowedLateness(Duration.standardSeconds(1))
           .discardingFiredPanes());
 
     PCollection<KV<String, Long>> wordCounts = windowedWords.apply(new WordCount.CountWords());
@@ -167,6 +167,7 @@ public class SolaceRecordTest {
           @ProcessElement
           public void processElement(@Element String e) {
             LOG.info("***" + e);
+            System.exit(0);
           }
         }));
 
