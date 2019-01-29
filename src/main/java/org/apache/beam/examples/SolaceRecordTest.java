@@ -167,7 +167,6 @@ public class SolaceRecordTest {
           @ProcessElement
           public void processElement(@Element String e) {
             LOG.info("***" + e);
-            System.exit(0);
           }
         }));
 
