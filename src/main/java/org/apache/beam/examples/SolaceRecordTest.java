@@ -134,17 +134,15 @@ public class SolaceRecordTest {
      */
     PCollection<SolaceTextRecord> input =
         pipeline
-            /* Read from the Solace JMS Server. */
-            .apply(SolaceIO.<SolaceTextRecord>readMessage()
-              .withConnectionConfiguration(SolaceIO.ConnectionConfiguration.create(
-                  options.getCip(), queues)
-                .withUsername(options.getCu())
-                .withPassword(options.getCp())
-                .withAutoAck(options.getAuto())
-                .withTimeout(options.getTimeout()))
-              .withCoder(SolaceTextRecord.getCoder())
-              .withMessageMapper(SolaceTextRecord.getMapper())
-            );
+          .apply(SolaceIO.<SolaceTextRecord>readMessage()
+            .withConnectionConfiguration(SolaceIO.ConnectionConfiguration.create(options.getCip(), queues)
+            .withUsername(options.getCu())
+            .withPassword(options.getCp())
+            .withAutoAck(options.getAuto())
+            .withTimeout(options.getTimeout()))
+            .withCoder(SolaceTextRecord.getCoder())
+            .withMessageMapper(SolaceTextRecord.getMapper())
+          );
 
     PCollection<String> next = input.apply(ParDo.of(new DoFn<SolaceTextRecord, String>() {
       @ProcessElement
