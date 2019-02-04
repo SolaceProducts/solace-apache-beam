@@ -1,7 +1,10 @@
 # Visual Studio Code
 .vscode
 
-# Maven Build settins
+# Eclipse
+.classpath
+
+# Maven Build settings
 .project
 .factorypath
 .settings

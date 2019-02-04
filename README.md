@@ -1,18 +1,18 @@
-[![Build Status](https://travis-ci.org/SolaceLabs/solace-beam-integration.svg?branch=development)](https://travis-ci.org/SolaceLabs/solace-beam-integration)
+[![Build Status](https://travis-ci.org/SolaceLabs/solace-beam-integration.svg?branch=master)](https://travis-ci.org/SolaceLabs/solace-beam-integration)
 
 # solace-beam-integration
 
 ## Synopsis
 
-This repository provides a solution which allows applications connected to a Solace Event Mesh to interop with Apache Beam.
+This repository provides a solution which allows applications connected to a Solace Event Mesh to interop with Apache Beam SDK and it's as a service offering Google Cloud Dataflow.
 
 Consider the following diagram:
 
 ![Architecture Overview](images/Overview.png)
 
-It does not matter if the application communicates with the Solace PubSub+ broker via a REST POST or AMQP, JMS or MQTT message, it can be sent streaming to Apache Beam for further processing by it's data runners and further on to other IO connectors such as BigQuery or Apache Cassandra, etc.
+It does not matter if the application communicates with the Solace PubSub+ broker (Appliances, Software and SolaceCloud) via a REST POST or AMQP, JMS or MQTT message, it can be sent streaming to Apache Beam for further processing by it's data runners and further on to other IO connectors such as BigQuery or Apache Cassandra, etc.
 
-The Solace Event Mesh is a clustered group of Solace PubSub+ Brokers that transparently, in real-time, route data events to any Service that is part of the Event Mesh. Solace PubSub+ Brokers (Appliances, Software and SolaceCloud) are connected to each other as a multi-connected mesh that to individual services (consumers or producers of data events) appears to be a single Event Broker. Events messages are seamlessly transported within the entire Solace Event Mesh regardless of where the event is created and where the process exists that has registered interested in consuming the event. 
+The Solace Event Mesh is a clustered group of Solace PubSub+ Brokers that transparently, in real-time, route data events to any Service that is part of the Event Mesh.  Solace PubSub+ Brokers are connected to each other as a multi-connected mesh that to individual services (consumers or producers of data events) appears to be a single Event Broker. Event messages are seamlessly transported within the entire Solace Event Mesh regardless of where the event is created and where the process exists that has registered interested in consuming the event. You can read move about the advantages of a Solace event mesh [here.](https://cloud.solace.com/learn/group_howto/ght_event_mesh.html)
 
 Simply by having a Beam connected Solace PubSub+ broker added to the Event Mesh, the entire Event Mesh becomes aware of the data registration request and will know how to securely route the appropriate events to and from Beam Connected services.
 
@@ -20,7 +20,7 @@ To understand the Beam architecture of source and sink IO connectors and runners
 
 To understand the capabilities of different Beam runners please review the [runner compatibility matrix.](https://beam.apache.org/documentation/runners/capability-matrix/) 
 
-This Beam integration solution allows any event from any service in the Solace Event Mesh to send [to be captured in:](https://beam.apache.org/documentation/io/built-in/)
+This Beam integration solution allows any event from any service in the Solace Event Mesh [to be captured in:](https://beam.apache.org/documentation/io/built-in/)
 * Google BigQuery
 * Google Cloud Bigtable
 * Google Cloud Datastore
@@ -41,7 +41,7 @@ This Beam integration solution allows any event from any service in the Solace E
 
 It does not matter which service in the Event Mesh created the event, the events are all potentially available to Beam Connected services. There is no longer a requirement to code end applications to reach individual data services.
 
-![Event Mesh](images/EventMesh.png)
+![Event Mesh](images/EventMesh_Beam.png)
 
 ## Design
 
@@ -79,9 +79,11 @@ To instantiate a SolaceIO connector a PCollection must be created within the con
 | autoAck         | false            | Acknowledge on receipt or after processing|
 | timeoutInMillis | 100              | Time between checkpoints|
 
+Further proccessing in the Beram pipeline would be applied to the input.
+
 ## Test Walkthrough
 
-This repository is accompanied by a travis test. Walking through the important lines of this test will help exemplify the SolaceIO usage.
+This repository is accompanied by a travis test. Walking through the important lines of this test as well as the example code included in this repo, will help exemplify the SolaceIO usage.  In this walkthrough Solace Cloud is used to provide a Solace PubSub+ message broker in a standard CI integrated test fassion.  Look [here](https://cloud.solace.com/) to see more info about Solace Cloud.
 
 Create a new Solace PubSub+ message broker as a service in Google Cloud:
 ```yaml
