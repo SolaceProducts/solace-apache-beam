@@ -37,7 +37,7 @@ script:
   - pubSubTools/sdkperf_c -cip=${SOLACE_URI} -cu="${USERNAME}@${SOLACE_VPN}" -cp=${PASSWORD} -mt=persistent -mn=10 -mr=10 -pfl=README.md -pql=Q/fx-001
   - mvn -e compile exec:java -Dexec.mainClass=org.apache.beam.examples.SolaceRecordTest -Dexec.args="--output=README10.counts --cip=${SOLACE_URI} --cu=${USERNAME}@${SOLACE_VPN} --cp=${PASSWORD} --sql=Q/fx-001" > /dev/null 2> output.log &
   - while [ ! -s output.log ] ; do echo "`date` Waiting for compile to complete and runner launch"; sleep 5; done
-  - sleep 60
+  - sleep 240
   - cat output.log
   - grep -E "UnboundedSolaceReader - try to ack [0-9]+ messages with active Session" output.log
   - cat README10.counts
