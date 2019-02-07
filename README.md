@@ -1,6 +1,6 @@
-[![Build Status](https://travis-ci.org/SolaceLabs/solace-beam-integration.svg?branch=master)](https://travis-ci.org/SolaceLabs/solace-beam-integration)
+[![Build Status](https://travis-ci.org/SolaceLabs/solace-beam-unboundedSource.svg?branch=master)](https://travis-ci.org/SolaceLabs/solace-beam-unboundedSource)
 
-# solace-beam-integration
+# solace-beam-unboundedSource
 
 ## Synopsis
 
