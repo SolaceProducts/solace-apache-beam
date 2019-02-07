@@ -38,11 +38,7 @@ script:
   - mvn -e compile exec:java -Dexec.mainClass=org.apache.beam.examples.SolaceRecordTest -Dexec.args="--output=README10.counts --cip=${SOLACE_URI} --cu=${USERNAME}@${SOLACE_VPN} --cp=${PASSWORD} --sql=Q/fx-001" > /dev/null 2> output.log &
   - while [ ! -s output.log ] ; do echo "`date` Waiting for compile to complete and runner launch"; sleep 5; done
   - sleep 20
-  - tail -n 40 output.log
-  - sleep 20
-  - tail -n 40 output.log
-  - sleep 20
-  - tail -n 40 output.log
+  - grep -E "SolaceRecordTest - \*\*\*CONTRIBUTING. [0-9]+" output.log
 
 after_success:
   - echo "Test Success - Branch( $TRAVIS_BRANCH ) Pull Request( $TRAVIS_PULL_REQUEST ) Tag( $TRAVIS_TAG )"
