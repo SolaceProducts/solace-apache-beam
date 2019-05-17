@@ -65,6 +65,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
   private String clientName;
   private Topic sempTopic;
   private String sempVersion;
+  private String currentMessageId;
 
   private T current;
   private Instant currentTimestamp;
@@ -178,7 +179,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 
       // TODO: get sender timestamp
       currentTimestamp = Instant.now();
-
+      currentMessageId = msg.getMessageId();
       // onlie client ack mode need to ack message
       if (!isAutoAck) {
         wait4cpQueue.add(msg);
@@ -327,5 +328,11 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
     LOG.debug("getSplitBacklogBytes() Reporting backlog bytes of: {} from queue {}", 
         Long.toString(backlogBytes), source.getQueueName());
     return backlogBytes;
+  }
+
+  @Override
+  public byte[] getCurrentRecordId() {
+    LOG.debug("Enter getCurrentRecordId()");
+    return currentMessageId.getBytes();
   }
 }
