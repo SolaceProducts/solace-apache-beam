@@ -331,8 +331,8 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
   }
 
   @Override
-  public String getCurrentRecordId() {
+  public byte[] getCurrentRecordId() {
     LOG.debug("Enter getCurrentRecordId()");
-    return currentMessageId;
+    return currentMessageId.getBytes();
   }
 }
