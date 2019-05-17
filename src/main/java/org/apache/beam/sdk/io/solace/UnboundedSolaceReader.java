@@ -179,7 +179,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 
       // TODO: get sender timestamp
       currentTimestamp = Instant.now();
-      getCurrentRecordId = msg.getMessageId();
+      currentMessageId = msg.getMessageId();
       // onlie client ack mode need to ack message
       if (!isAutoAck) {
         wait4cpQueue.add(msg);
@@ -333,6 +333,6 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
   @Override
   public String getCurrentRecordId() {
     LOG.debug("Enter getCurrentRecordId()");
-
+    return currentMessageId;
   }
 }
