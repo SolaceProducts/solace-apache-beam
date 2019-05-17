@@ -82,7 +82,7 @@ class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpointMark> 
   }
 
   @Override
-  public Boolean requiresDeduping() {
+  public boolean requiresDeduping() {
     return true;
   }
 
