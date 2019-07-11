@@ -40,6 +40,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
   private final UnboundedSolaceSource<T> source;
   private JCSMPSession session;
   private XMLMessageProducer prod;
+  private XMLMessageConsumer consumer;
   private FlowReceiver flowReceiver;
   private boolean isAutoAck;
   private boolean useSenderTimestamp;
@@ -102,8 +103,18 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 
       session = JCSMPFactory.onlyInstance().createSession(properties);
       prod = session.getMessageProducer(new PrintingPubCallback());
+      consumer = session.getMessageConsumer(new XMLMessageListener() {
+          @Override
+          public void onReceive(BytesXMLMessage bytesXMLMessage) {
+          }
+
+          @Override
+          public void onException(JCSMPException e) {
+            }
+        });
       clientName = (String) session.getProperty(JCSMPProperties.CLIENT_NAME);
       session.connect();
+      consumer.start();
 
       String routerName = (String) session.getCapability(CapabilityType.PEER_ROUTER_NAME);
       final String sempTopicString = String.format("#SEMP/%s/SHOW", routerName);
