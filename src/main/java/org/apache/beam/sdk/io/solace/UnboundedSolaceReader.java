@@ -62,11 +62,10 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
   private XMLMessageProducer prod;
   private FlowReceiver flowReceiver;
   private boolean isAutoAck;
+  private boolean useSenderTimestamp;
   private String clientName;
   private Topic sempTopic;
   private String sempVersion;
-  private String currentMessageId;
-
   private T current;
   private Instant currentTimestamp;
 
@@ -146,6 +145,8 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
         flow_prop.setAckMode(JCSMPProperties.SUPPORTED_MESSAGE_ACK_CLIENT);
       }
 
+      this.useSenderTimestamp = spec.connectionConfiguration().isSenderTimestamp();
+
       EndpointProperties endpointProps = new EndpointProperties();
       endpointProps.setAccessType(EndpointProperties.ACCESSTYPE_EXCLUSIVE);
       // bind to the queue, passing null as message listener for no async callback
@@ -177,10 +178,19 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 
       current = this.source.getSpec().messageMapper().mapMessage(msg);
 
-      // TODO: get sender timestamp
-      currentTimestamp = Instant.now();
-      currentMessageId = msg.getMessageId();
-      // onlie client ack mode need to ack message
+      // if using sender timestamps use them, else use current time.
+      if (useSenderTimestamp) {
+        Long solaceTime = msg.getSendTimestamp();
+        if (solaceTime == null) {
+            currentTimestamp = Instant.now();
+          } else {
+            currentTimestamp = new Instant(solaceTime.longValue());
+          }
+      } else {
+        currentTimestamp = Instant.now();
+      }
+
+      // add message to checkpoint ack if not autoack
       if (!isAutoAck) {
         wait4cpQueue.add(msg);
       }
@@ -328,11 +338,5 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
     LOG.debug("getSplitBacklogBytes() Reporting backlog bytes of: {} from queue {}", 
         Long.toString(backlogBytes), source.getQueueName());
     return backlogBytes;
-  }
-
-  @Override
-  public byte[] getCurrentRecordId() {
-    LOG.debug("Enter getCurrentRecordId()");
-    return currentMessageId.getBytes();
   }
 }

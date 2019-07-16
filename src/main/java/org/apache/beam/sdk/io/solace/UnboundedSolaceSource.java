@@ -15,7 +15,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javax.annotation.Nullable;
-import javax.annotation.OverridingMethodsMustInvokeSuper;
 
 @VisibleForTesting
 class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpointMark> {
@@ -79,11 +78,6 @@ class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpointMark> 
   @Override
   public Coder<T> getOutputCoder() {
     return this.spec.coder();
-  }
-
-  @Override
-  public boolean requiresDeduping() {
-    return true;
   }
 
 }

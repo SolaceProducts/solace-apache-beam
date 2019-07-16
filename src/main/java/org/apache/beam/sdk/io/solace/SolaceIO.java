@@ -80,8 +80,10 @@ public class SolaceIO {
 
     @Nullable
     abstract String getPassword();
-
+    
     abstract boolean isAutoAck();
+    
+    abstract boolean isSenderTimestamp();
 
     // The timeout in milliseconds while try to receive a messages from Solace
     // broker
@@ -105,7 +107,10 @@ public class SolaceIO {
 
       abstract Builder setAutoAck(boolean autoAck);
 
+      abstract Builder setSenderTimestamp(boolean useSenderTimestamp);
+
       abstract Builder setTimeoutInMillis(int timeoutInMillis);
+      
 
       abstract ConnectionConfiguration build();
     }
@@ -118,8 +123,11 @@ public class SolaceIO {
       checkArgument(queues != null && queues.size() > 0, "queues can not be null or empty");
 
       return new AutoValue_SolaceIO_ConnectionConfiguration.Builder()
-          .setHost(host).setQueues(queues).setAutoAck(false)
-          .setTimeoutInMillis(100) // the default value of time out is 0.1 second
+          .setHost(host)
+          .setQueues(queues)
+          .setAutoAck(false)
+          .setSenderTimestamp(false)
+          .setTimeoutInMillis(100)
           .build();
     }
 
@@ -150,6 +158,10 @@ public class SolaceIO {
 
     public ConnectionConfiguration withAutoAck(boolean autoAck) {
       return builder().setAutoAck(autoAck).build();
+    }
+
+    public ConnectionConfiguration withSenderTimestamp(boolean useSenderTimestamp) {
+      return builder().setSenderTimestamp(useSenderTimestamp).build();
     }
 
     public ConnectionConfiguration withTimeout(int timeoutInMillis) {

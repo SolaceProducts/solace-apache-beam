@@ -116,6 +116,11 @@ public class SolaceRecordTest {
               boolean getAuto();
               void setAuto(boolean value);
 
+              @Description("Enable reading sender timestamp to deturmine freashness of data")
+              @Default.Boolean(false)
+              boolean getSts();
+              void setSts(boolean value);
+
               @Description("The timeout in milliseconds while try to receive a messages from Solace broker")
               @Default.Integer(100)
               int getTimeout();
@@ -139,6 +144,7 @@ public class SolaceRecordTest {
             .withUsername(options.getCu())
             .withPassword(options.getCp())
             .withAutoAck(options.getAuto())
+            .withSenderTimestamp(options.getSts())
             .withTimeout(options.getTimeout()))
             .withCoder(SolaceTextRecord.getCoder())
             .withMessageMapper(SolaceTextRecord.getMapper())

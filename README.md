@@ -63,6 +63,7 @@ To instantiate a SolaceIO connector a PCollection must be created within the con
         .withPassword(String password)
         .withVpn(String vpn)
         .withAutoAck(boolean autoAck)
+        .withSenderTimestamp(boolean useSenderTs))
         .withTimeout(int timeoutInMillis)
         .withCoder(SolaceTextRecord.getCoder())
         .withMessageMapper(SolaceTextRecord.getMapper())
@@ -77,6 +78,7 @@ To instantiate a SolaceIO connector a PCollection must be created within the con
 | password        | _Requires input_ | Password used to connect to Solace message broker|
 | vpn             | default          | Logical VPN instance within the broker to connect to|
 | autoAck         | false            | Acknowledge on receipt or after processing|
+| SenderTimestamp | false            | Use Sender TS to deturmine freshness of data, else Beam receive time |
 | timeoutInMillis | 100              | Time between checkpoints|
 
 Further proccessing in the Beram pipeline would be applied to the input.
