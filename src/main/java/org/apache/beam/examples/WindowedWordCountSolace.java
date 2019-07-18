@@ -115,6 +115,11 @@ public class WindowedWordCountSolace {
               boolean getAuto();
               void setAuto(boolean value);
 
+              @Description("Enable reading sender timestamp to deturmine freashness of data")
+              @Default.Boolean(false)
+              boolean getSts();
+              void setSts(boolean value);
+
               @Description("The timeout in milliseconds while try to receive a messages from Solace broker")
               @Default.Integer(100)
               int getTimeout();
@@ -140,6 +145,7 @@ public class WindowedWordCountSolace {
               .withUsername(options.getCu())
               .withPassword(options.getCp())
               .withAutoAck(options.getAuto())
+              .withSenderTimestamp(options.getSts())
               .withTimeout(options.getTimeout()))
           );
 
@@ -163,10 +169,10 @@ public class WindowedWordCountSolace {
      * simple ParDo operation. Because there may be failures followed by retries, the
      * writes must be idempotent, but the details of writing to files is elided here.
      */
-      final String output = options.getOutput();
-      wordCounts
-        .apply(MapElements.via(new WordCount.FormatAsTextFn()))
-        .apply(new WriteOneFilePerWindow(output, 1));
+    final String output = options.getOutput();
+    wordCounts
+      .apply(MapElements.via(new WordCount.FormatAsTextFn()))
+      .apply(new WriteOneFilePerWindow(output, 1));
 
     PipelineResult result = pipeline.run();
     try {
