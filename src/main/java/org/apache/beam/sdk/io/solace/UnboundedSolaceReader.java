@@ -70,7 +70,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
   private Instant currentTimestamp;
 
   /**
-   * Queue to palce advanced messages before {@link #getCheckpointMark()} be
+   * Queue to place advanced messages before {@link #getCheckpointMark()} be
    * called non concurrent queue, should only be accessed by the reader thread A
    * given {@link UnboundedReader} object will only be accessed by a single thread
    * at once.
@@ -232,17 +232,20 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
   public UnboundedSource.CheckpointMark getCheckpointMark() {
     // put all messages in wait4cp to safe2ack
     // and clean the wait4cp queue in the same time
+    SolaceCheckpointMark scm = null;
     try {
-      BytesXMLMessage msg = wait4cpQueue.poll();
+      BytesXMLMessage msg = wait4cpQueue.peek();
+    /*  BytesXMLMessage msg = wait4cpQueue.poll();
       while (msg != null) {
         safe2ackQueue.put(msg);
         msg = wait4cpQueue.poll();
       }
+    */
+      scm = new SolaceCheckpointMark(this, clientName, msg);
+    
     } catch (Exception ex) {
       LOG.error("Got exception while putting into the blocking queue: {}", ex);
     }
-
-    SolaceCheckpointMark scm = new SolaceCheckpointMark(this, clientName);
 
     return scm;
   }
@@ -253,7 +256,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
    * checkpoint to be taken but never finalized So we simply ack all messages
    * which are read to be ack.
    */
-  public void ackMessages() throws IOException {
+  public void ackMessages(BytesXMLMessage message) throws IOException {
     LOG.debug("try to ack {} messages with {} Session [{}]", safe2ackQueue.size(), 
         active.get() ? "active" : "closed",
         clientName);
@@ -262,12 +265,23 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
       return;
     }
     try {
-      while (safe2ackQueue.size() > 0) {
+     /*while (safe2ackQueue.size() > 0) {
         BytesXMLMessage msg = safe2ackQueue.poll(0, TimeUnit.NANOSECONDS);
         if (msg != null) {
           msg.ackMessage();
         }
       }
+    */
+    
+    BytesXMLMessage msg = wait4cpQueue.poll();
+      while (msg != message) {
+        if (msg != null) {
+          msg.ackMessage();
+        }
+        msg = wait4cpQueue.poll();
+      }
+      msg.ackMessage();
+    
     } catch (Exception ex) {
       LOG.error("Got exception while acking the message: {}", ex);
       throw new IOException(ex);
