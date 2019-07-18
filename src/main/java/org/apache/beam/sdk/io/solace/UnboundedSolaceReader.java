@@ -1,48 +1,28 @@
 package org.apache.beam.sdk.io.solace;
 
 import com.google.common.annotations.VisibleForTesting;
-
-import com.solacesystems.jcsmp.BytesXMLMessage;
-import com.solacesystems.jcsmp.CapabilityType;
-import com.solacesystems.jcsmp.ConsumerFlowProperties;
-import com.solacesystems.jcsmp.EndpointProperties;
-import com.solacesystems.jcsmp.FlowReceiver;
-import com.solacesystems.jcsmp.JCSMPException;
-import com.solacesystems.jcsmp.JCSMPFactory;
-import com.solacesystems.jcsmp.JCSMPProperties;
-import com.solacesystems.jcsmp.JCSMPSession;
-import com.solacesystems.jcsmp.JCSMPStreamingPublishEventHandler;
-import com.solacesystems.jcsmp.Queue;
-import com.solacesystems.jcsmp.Requestor;
-import com.solacesystems.jcsmp.Topic;
-import com.solacesystems.jcsmp.XMLMessageProducer;
-
+import com.solacesystems.jcsmp.*;
 import org.apache.beam.sdk.io.UnboundedSource;
-
 import org.joda.time.Instant;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathFactory;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-
+import java.io.Serializable;
 import java.util.LinkedList;
 import java.util.NoSuchElementException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-
-import javax.xml.xpath.XPath;
-import javax.xml.xpath.XPathConstants;
-import javax.xml.xpath.XPathFactory;
+import java.util.concurrent.atomic.AtomicLong;
 
 
 
@@ -55,7 +35,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 
   // The closed state of this {@link UnboundedSolaceReader}. If true, the reader
   // has not yet been closed,
-  private AtomicBoolean active = new AtomicBoolean(true);
+  AtomicBoolean active = new AtomicBoolean(true);
 
   private final UnboundedSolaceSource<T> source;
   private JCSMPSession session;
@@ -69,6 +49,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 
   private T current;
   private Instant currentTimestamp;
+  AtomicLong watermark = new AtomicLong(0);
 
   /**
    * Queue to palce advanced messages before {@link #getCheckpointMark()} be
@@ -76,7 +57,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
    * given {@link UnboundedReader} object will only be accessed by a single thread
    * at once.
    */
-  private java.util.Queue<BytesXMLMessage> wait4cpQueue = new LinkedList<BytesXMLMessage>();
+    private java.util.Queue<Message> wait4cpQueue = new LinkedList<>();
 
   /**
    * Queue to place messages ready to ack, will be accessed by
@@ -182,7 +163,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
       currentMessageId = msg.getMessageId();
       // onlie client ack mode need to ack message
       if (!isAutoAck) {
-        wait4cpQueue.add(msg);
+        wait4cpQueue.add(new Message(msg, currentTimestamp));
       }
     } catch (Exception ex) {
       throw new IOException(ex);
@@ -207,62 +188,52 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
     // TODO: add finally block to close session.
   }
 
-  /**
-   * Direct Runner will call this method on every second.
-   */
-  @Override
-  public Instant getWatermark() {
-    if (current == null) {
-      return Instant.now();
-    }
-    return currentTimestamp;
-  }
-
-  @Override
-  public UnboundedSource.CheckpointMark getCheckpointMark() {
-    // put all messages in wait4cp to safe2ack
-    // and clean the wait4cp queue in the same time
-    try {
-      BytesXMLMessage msg = wait4cpQueue.poll();
-      while (msg != null) {
-        safe2ackQueue.put(msg);
-        msg = wait4cpQueue.poll();
-      }
-    } catch (Exception ex) {
-      LOG.error("Got exception while putting into the blocking queue: {}", ex);
-    }
-
-    SolaceCheckpointMark scm = new SolaceCheckpointMark(this, clientName);
-
-    return scm;
-  }
-
-  /**
-   * Ack all message in the safe2ackQueue called by
-   * {@link SolaceCheckpointMark #finalizeCheckpoint()} It's possible for a
-   * checkpoint to be taken but never finalized So we simply ack all messages
-   * which are read to be ack.
-   */
-  public void ackMessages() throws IOException {
-    LOG.debug("try to ack {} messages with {} Session [{}]", safe2ackQueue.size(), 
-        active.get() ? "active" : "closed",
-        clientName);
-
-    if (!active.get()) {
-      return;
-    }
-    try {
-      while (safe2ackQueue.size() > 0) {
-        BytesXMLMessage msg = safe2ackQueue.poll(0, TimeUnit.NANOSECONDS);
-        if (msg != null) {
-          msg.ackMessage();
+    /**
+     * Direct Runner will call this method on every second
+     */
+    @Override
+    public Instant getWatermark() {
+        if (watermark == null){
+            return new Instant(0);
         }
-      }
-    } catch (Exception ex) {
-      LOG.error("Got exception while acking the message: {}", ex);
-      throw new IOException(ex);
+        return new Instant(watermark.get());
     }
-  }
+
+    static class Message implements Serializable {
+        BytesXMLMessage message;
+        Instant time;
+
+        public Message(BytesXMLMessage message, Instant time) {
+            this.message = message;
+            this.time = time;
+        }
+    }
+
+    @Override
+    public UnboundedSource.CheckpointMark getCheckpointMark() {
+        if (!isAutoAck) {
+            // put all messages in wait4cp to safe2ack
+            // and clean the wait4cp queue in the same time
+            BlockingQueue<Message> ackQueue = new LinkedBlockingQueue<>();
+            try {
+                Message msg = wait4cpQueue.poll();
+                while (msg != null) {
+                    ackQueue.put(msg);
+                    msg = wait4cpQueue.poll();
+                }
+            } catch (Exception e) {
+                LOG.error("Got exception while putting into the blocking queue: {}", e);
+            }
+
+            return new SolaceCheckpointMark(this, clientName, ackQueue);
+        } else {
+            return new UnboundedSource.CheckpointMark() {
+                public void finalizeCheckpoint() throws IOException {
+                    // nothing to do
+                }
+            };
+        }
+    }
 
   @Override
   public T getCurrent() {
