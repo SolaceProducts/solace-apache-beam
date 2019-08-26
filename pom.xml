@@ -27,7 +27,7 @@
   <packaging>jar</packaging>
 
   <properties>
-    <beam.version>2.8.0</beam.version>
+    <beam.version>2.14.0</beam.version>
 
     <bigquery.version>v2-rev374-1.23.0</bigquery.version>
     <google-clients.version>1.23.0</google-clients.version>
@@ -362,20 +362,6 @@
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-bigquery</artifactId>
       <version>${bigquery.version}</version>
-      <exclusions>
-        <!-- Exclude an old version of guava that is being pulled
-             in by a transitive dependency of google-api-client -->
-        <exclusion>
-          <groupId>com.google.guava</groupId>
-          <artifactId>guava-jdk5</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.http-client</groupId>
-      <artifactId>google-http-client</artifactId>
-      <version>${google-clients.version}</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
              in by a transitive dependency of google-api-client -->
