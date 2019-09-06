@@ -15,8 +15,6 @@ import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathFactory;
 
-import static org.junit.Assume.assumeNoException;
-
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.Serializable;
@@ -42,13 +40,14 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 
   private final UnboundedSolaceSource<T> source;
   private JCSMPSession session;
-  private XMLMessageProducer prod;
   private FlowReceiver flowReceiver;
   private boolean isAutoAck;
   private boolean useSenderTimestamp;
+  private boolean useSenderMessageId;
   private String clientName;
   private Topic sempTopic;
   private String sempVersion;
+  private String currentMessageId;
   private T current;
   private Instant currentTimestamp;
   AtomicLong watermark = new AtomicLong(0);
@@ -104,7 +103,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
       }
 
       session = JCSMPFactory.onlyInstance().createSession(properties);
-      prod = session.getMessageProducer(new PrintingPubCallback());
+      session.getMessageProducer(new PrintingPubCallback());
       XMLMessageConsumer consumer = session.getMessageConsumer((XMLMessageListener)null); consumer.start();
       clientName = (String) session.getProperty(JCSMPProperties.CLIENT_NAME);
       session.connect();
@@ -131,6 +130,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
       }
 
       this.useSenderTimestamp = spec.connectionConfiguration().isSenderTimestamp();
+      this.useSenderMessageId = spec.connectionConfiguration().isSenderMessageId();
 
       EndpointProperties endpointProps = new EndpointProperties();
       endpointProps.setAccessType(EndpointProperties.ACCESSTYPE_EXCLUSIVE);
@@ -165,7 +165,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 
       // if using sender timestamps use them, else use current time.
       if (useSenderTimestamp) {
-        Long solaceTime = msg.getSendTimestamp();
+        Long solaceTime = msg.getSenderTimestamp();
         if (solaceTime == null) {
             currentTimestamp = Instant.now();
           } else {
@@ -173,6 +173,16 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
           }
       } else {
         currentTimestamp = Instant.now();
+      }
+
+      //Get messageID for de-dupping, best to use ApplicationMessageID and MessageID resets over connections
+      if (useSenderMessageId) {
+        currentMessageId = msg.getApplicationMessageId();
+        if (currentMessageId == null) {
+          currentMessageId = msg.getMessageId();
+        }
+      } else {
+        currentMessageId = msg.getMessageId();
       }
 
       // add message to checkpoint ack if not autoack
@@ -214,13 +224,14 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
     }
 
     static class Message implements Serializable {
-        BytesXMLMessage message;
-        Instant time;
+      private static final long serialVersionUID = 42L;
+      BytesXMLMessage message;
+      Instant time;
 
-        public Message(BytesXMLMessage message, Instant time) {
-            this.message = message;
-            this.time = time;
-        }
+      public Message(BytesXMLMessage message, Instant time) {
+        this.message = message;
+        this.time = time;
+      }
     }
 
     @Override
@@ -329,5 +340,11 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
     LOG.debug("getTotalBacklogBytes() Reporting backlog bytes of: {} from queue {}", 
         Long.toString(backlogBytes), source.getQueueName());
     return backlogBytes;
+  }
+
+  @Override
+  public byte[] getCurrentRecordId() {
+    LOG.debug("Enter getCurrentRecordId()");
+    return currentMessageId.getBytes();
   }
 }

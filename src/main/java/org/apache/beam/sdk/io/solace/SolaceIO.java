@@ -13,12 +13,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-
 import org.joda.time.Duration;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.Serializable;
 
 import java.util.List;
@@ -28,7 +23,7 @@ import javax.annotation.Nullable;
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class SolaceIO {
 
-  private static final Logger LOG = LoggerFactory.getLogger(SolaceIO.class);
+  //private static final Logger LOG = LoggerFactory.getLogger(SolaceIO.class);
 
   /**
    * Read Solace message as a STRING.
@@ -85,6 +80,8 @@ public class SolaceIO {
     
     abstract boolean isSenderTimestamp();
 
+    abstract boolean isSenderMessageId();
+
     // The timeout in milliseconds while try to receive a messages from Solace
     // broker
     abstract int getTimeoutInMillis();
@@ -109,6 +106,8 @@ public class SolaceIO {
 
       abstract Builder setSenderTimestamp(boolean useSenderTimestamp);
 
+      abstract Builder setSenderMessageId(boolean useSenderMessageId);
+
       abstract Builder setTimeoutInMillis(int timeoutInMillis);
       
 
@@ -127,6 +126,7 @@ public class SolaceIO {
           .setQueues(queues)
           .setAutoAck(false)
           .setSenderTimestamp(false)
+          .setSenderMessageId(false)
           .setTimeoutInMillis(100)
           .build();
     }
@@ -162,6 +162,10 @@ public class SolaceIO {
 
     public ConnectionConfiguration withSenderTimestamp(boolean useSenderTimestamp) {
       return builder().setSenderTimestamp(useSenderTimestamp).build();
+    }
+
+    public ConnectionConfiguration withSenderMessageId(boolean useSenderMessageId) {
+      return builder().setSenderMessageId(useSenderMessageId).build();
     }
 
     public ConnectionConfiguration withTimeout(int timeoutInMillis) {

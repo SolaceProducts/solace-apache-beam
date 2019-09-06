@@ -20,7 +20,6 @@ package org.apache.beam.examples;
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.beam.examples.common.ExampleOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.solace.SolaceIO;
@@ -120,6 +119,11 @@ public class SolaceRecordTest {
               boolean getSts();
               void setSts(boolean value);
 
+              @Description("Enable reading sender MessageId to deturmine duplication of data")
+              @Default.Boolean(false)
+              boolean getSmi();
+              void setSmi(boolean value);
+
               @Description("The timeout in milliseconds while try to receive a messages from Solace broker")
               @Default.Integer(100)
               int getTimeout();
@@ -144,6 +148,7 @@ public class SolaceRecordTest {
             .withPassword(options.getCp())
             .withAutoAck(options.getAuto())
             .withSenderTimestamp(options.getSts())
+            .withSenderMessageId(options.getSmi())
             .withTimeout(options.getTimeout()))
             .withCoder(SolaceTextRecord.getCoder())
             .withMessageMapper(SolaceTextRecord.getMapper())

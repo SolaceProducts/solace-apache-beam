@@ -23,16 +23,12 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.apache.beam.sdk.io.solace.*;
 import java.util.Arrays;
@@ -87,7 +83,6 @@ import java.util.List;
  * <p>The example will try to cancel the pipeline on the signal to terminate the process (CTRL-C).
  */
 public class WindowedWordCountSolace {
-  private static final Logger LOG = LoggerFactory.getLogger(WindowedWordCountSolace.class);
 
     public interface Options
             extends WordCount.WordCountOptions {
@@ -118,6 +113,11 @@ public class WindowedWordCountSolace {
               boolean getSts();
               void setSts(boolean value);
 
+              @Description("Enable reading sender MessageId to deturmine duplication of data")
+              @Default.Boolean(false)
+              boolean getSmi();
+              void setSmi(boolean value);
+
               @Description("The timeout in milliseconds while try to receive a messages from Solace broker")
               @Default.Integer(100)
               int getTimeout();
@@ -144,6 +144,7 @@ public class WindowedWordCountSolace {
               .withPassword(options.getCp())
               .withAutoAck(options.getAuto())
               .withSenderTimestamp(options.getSts())
+              .withSenderMessageId(options.getSmi())
               .withTimeout(options.getTimeout()))
           );
 

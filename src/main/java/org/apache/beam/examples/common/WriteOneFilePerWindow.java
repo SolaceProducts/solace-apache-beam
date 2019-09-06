@@ -44,6 +44,7 @@ import org.joda.time.format.ISODateTimeFormat;
  * lessons.
  */
 public class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone> {
+  private static final long serialVersionUID = 42L;
   private static final DateTimeFormatter FORMATTER = ISODateTimeFormat.hourMinute();
   private String filenamePrefix;
   @Nullable private Integer numShards;
@@ -74,7 +75,7 @@ public class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone
    * trigger firing).
    */
   public static class PerWindowFiles extends FilenamePolicy {
-
+    private static final long serialVersionUID = 42L;
     private final ResourceId baseFilename;
 
     public PerWindowFiles(ResourceId baseFilename) {

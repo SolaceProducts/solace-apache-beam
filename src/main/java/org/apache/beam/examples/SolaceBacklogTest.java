@@ -1,7 +1,5 @@
 package org.apache.beam.examples;
 
-import java.util.Arrays;
-import java.util.List;
 import java.io.ByteArrayInputStream;
 
 import javax.xml.parsers.DocumentBuilder;
@@ -11,13 +9,11 @@ import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathFactory;
 
 import com.solacesystems.jcsmp.*;
-import org.apache.beam.sdk.io.solace.SolaceIO;
 
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 
-import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
@@ -27,13 +23,7 @@ public class SolaceBacklogTest {
     private static final Logger LOG = LoggerFactory.getLogger(SolaceBacklogTest.class);
 
     private static JCSMPSession session;
-    private static XMLMessageProducer prod;
-    private static FlowReceiver flowReceiver;
-    private static boolean isAutoAck;
-    private static boolean useSenderTimestamp;
-    private static String clientName;
     private static Topic sempTopic;
-    private static String sempVersion;
 
     public interface Options extends WordCount.WordCountOptions {
       @Description("IP and port of the client appliance. (e.g. -cip=192.168.160.101)")
@@ -63,6 +53,11 @@ public class SolaceBacklogTest {
       boolean getSts();
       void setSts(boolean value);
 
+      @Description("Enable reading sender MessageId to deturmine duplication of data")
+      @Default.Boolean(false)
+      boolean getSmi();
+      void setSmi(boolean value);
+
       @Description("The timeout in milliseconds while try to receive a messages from Solace broker")
       @Default.Integer(100)
       int getTimeout();
@@ -91,9 +86,8 @@ public class SolaceBacklogTest {
       properties.setProperty(JCSMPProperties.VPN_NAME, "default"); // message-vpn
 
       session = JCSMPFactory.onlyInstance().createSession(properties);
-      prod = session.getMessageProducer(new PrintingPubCallback());
+      XMLMessageProducer prod = session.getMessageProducer(new PrintingPubCallback());
       XMLMessageConsumer consumer = session.getMessageConsumer((XMLMessageListener)null); consumer.start();
-      clientName = (String) session.getProperty(JCSMPProperties.CLIENT_NAME);
       session.connect();
 
       String routerName = (String) session.getCapability(CapabilityType.PEER_ROUTER_NAME);
@@ -112,7 +106,7 @@ public class SolaceBacklogTest {
       EndpointProperties endpointProps = new EndpointProperties();
       endpointProps.setAccessType(EndpointProperties.ACCESSTYPE_EXCLUSIVE);
       // bind to the queue, passing null as message listener for no async callback
-      flowReceiver = session.createFlow(null, flow_prop, endpointProps);
+      FlowReceiver flowReceiver = session.createFlow(null, flow_prop, endpointProps);
       // Start the consumer
       flowReceiver.start();
       long backlog = queryQueueBytes(options.getSql(), "default");
@@ -125,8 +119,7 @@ public class SolaceBacklogTest {
   public static long queryQueueBytes(String queueName, String vpnName) {
     LOG.info("Enter queryQueueBytes() Queue: [{}] VPN: [{}]",  queueName, vpnName);
     long queueBytes = 0;
-    String sempShowQueue = "<rpc semp-version=\"" + sempVersion + "\">";
-    sempShowQueue += "<show><queue><name>" + queueName + "</name>";
+    String sempShowQueue = "<rpc><show><queue><name>" + queueName + "</name>";
     sempShowQueue += "<vpn-name>" + vpnName + "</vpn-name></queue></show></rpc>";
     try {
       Requestor requestor = session.createRequestor();

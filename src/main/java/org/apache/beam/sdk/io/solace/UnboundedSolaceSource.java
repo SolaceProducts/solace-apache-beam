@@ -80,4 +80,9 @@ class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpointMark> 
     return this.spec.coder();
   }
 
+  @Override
+  public boolean requiresDeduping() {
+    return true;
+  }
+
 }
