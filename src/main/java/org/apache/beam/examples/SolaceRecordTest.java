@@ -158,7 +158,7 @@ public class SolaceRecordTest {
     }));
 
     PCollection<String> windowedWords = next.apply(
-        Window.<String>into(FixedWindows.of(Duration.standardSeconds(1)))
+        Window.<String>into(FixedWindows.of(Duration.standardSeconds(4)))
           .triggering(AfterWatermark.pastEndOfWindow())
           .withAllowedLateness(Duration.standardSeconds(1))
           .discardingFiredPanes());

@@ -17,8 +17,6 @@
  */
 package org.apache.beam.examples;
 
-import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
-import org.apache.beam.examples.common.ExampleOptions;
 import org.apache.beam.examples.common.WriteOneFilePerWindow;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -92,7 +90,7 @@ public class WindowedWordCountSolace {
   private static final Logger LOG = LoggerFactory.getLogger(WindowedWordCountSolace.class);
 
     public interface Options
-            extends WordCount.WordCountOptions, ExampleOptions, ExampleBigQueryTableOptions {
+            extends WordCount.WordCountOptions {
               @Description("IP and port of the client appliance. (e.g. -cip=192.168.160.101)")
               String getCip();
               void setCip(String value);

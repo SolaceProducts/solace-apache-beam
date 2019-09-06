@@ -14,6 +14,9 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathFactory;
+
+import static org.junit.Assume.assumeNoException;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.Serializable;
@@ -102,6 +105,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 
       session = JCSMPFactory.onlyInstance().createSession(properties);
       prod = session.getMessageProducer(new PrintingPubCallback());
+      XMLMessageConsumer consumer = session.getMessageConsumer((XMLMessageListener)null); consumer.start();
       clientName = (String) session.getProperty(JCSMPProperties.CLIENT_NAME);
       session.connect();
 
@@ -267,6 +271,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
   }
 
   public long queryQueueBytes(String queueName, String vpnName) {
+    LOG.debug("Enter queryQueueBytes() Queue: [{}] VPN: [{}]",  queueName, vpnName);
     long queueBytes = 0;
     String sempShowQueue = "<rpc semp-version=\"" + sempVersion + "\">";
     sempShowQueue += "<show><queue><name>" + queueName + "</name>";
@@ -284,7 +289,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
       DocumentBuilder builder = factory.newDocumentBuilder();
       Document doc = builder.parse(input);
       XPath xpath = XPathFactory.newInstance().newXPath();
-      String expression = "/rpc-reply/rpc/show/queue/queues/queue/info/num-messages-spooled";
+      String expression = "/rpc-reply/rpc/show/queue/queues/queue/info/current-spool-usage-in-bytes";
       Node node = (Node) xpath.compile(expression).evaluate(doc, XPathConstants.NODE);
       queueBytes = Long.parseLong(node.getTextContent());
     } catch (JCSMPException ex) {
@@ -297,6 +302,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
     return queueBytes;
   }
 
+
   @Override
   public long getSplitBacklogBytes() {
     LOG.debug("Enter getSplitBacklogBytes()");
@@ -307,6 +313,20 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
       return UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
     }
     LOG.debug("getSplitBacklogBytes() Reporting backlog bytes of: {} from queue {}", 
+        Long.toString(backlogBytes), source.getQueueName());
+    return backlogBytes;
+  }
+
+  @Override
+  public long getTotalBacklogBytes() {
+    LOG.debug("Enter getTotalBacklogBytes()");
+    long backlogBytes = 0;
+    long queuBacklog = queryQueueBytes(source.getQueueName(), source.getVpnName());
+    if (queuBacklog == UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN) {
+      LOG.error("getTotalBacklogBytes() unable to read bytes from: {}", source.getQueueName());
+      return UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
+    }
+    LOG.debug("getTotalBacklogBytes() Reporting backlog bytes of: {} from queue {}", 
         Long.toString(backlogBytes), source.getQueueName());
     return backlogBytes;
   }
