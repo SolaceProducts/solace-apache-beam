@@ -41,6 +41,7 @@ class SolaceCheckpointMark implements UnboundedSource.CheckpointMark, Serializab
             if (!reader.active.get()){
                 return;
             }
+            int ackListSize = ackQueue.size();
             try {
                 while(ackQueue.size()>0){
                     UnboundedSolaceReader.Message msg = ackQueue.poll(0, TimeUnit.NANOSECONDS);
@@ -58,6 +59,7 @@ class SolaceCheckpointMark implements UnboundedSource.CheckpointMark, Serializab
                         });
                     }
                 }
+            reader.readerStats.incrCheckpointCompleteMessages(new Long (ackListSize));
             }catch(Exception e){
                 LOG.error("Got exception while acking the message: {}", e);
                 throw new IOException(e);

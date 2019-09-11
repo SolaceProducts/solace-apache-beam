@@ -86,7 +86,7 @@ public class SolaceBacklogTest {
       properties.setProperty(JCSMPProperties.VPN_NAME, "default"); // message-vpn
 
       session = JCSMPFactory.onlyInstance().createSession(properties);
-      XMLMessageProducer prod = session.getMessageProducer(new PrintingPubCallback());
+      session.getMessageProducer(new PrintingPubCallback());
       XMLMessageConsumer consumer = session.getMessageConsumer((XMLMessageListener)null); consumer.start();
       session.connect();
 

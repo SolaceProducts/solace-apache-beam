@@ -4,6 +4,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.solacesystems.jcsmp.*;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.joda.time.Instant;
+import org.joda.time.LocalTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
@@ -18,12 +19,16 @@ import javax.xml.xpath.XPathFactory;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.LinkedList;
 import java.util.NoSuchElementException;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 
 
@@ -50,6 +55,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
   private String currentMessageId;
   private T current;
   private Instant currentTimestamp;
+  public final SolaceReaderStats readerStats;
   AtomicLong watermark = new AtomicLong(0);
 
   /**
@@ -65,7 +71,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
    * {@link #getCheckpointMark()} and
    * {@link SolaceCheckpointMark#finalizeCheckpoint()} in defferent thread.
    */
-  private BlockingQueue<BytesXMLMessage> safe2ackQueue = new LinkedBlockingQueue<BytesXMLMessage>();
+  //private BlockingQueue<BytesXMLMessage> safe2ackQueue = new LinkedBlockingQueue<BytesXMLMessage>();
 
   public class PrintingPubCallback implements JCSMPStreamingPublishEventHandler {
     public void handleError(String messageId, JCSMPException cause, long timestamp) {
@@ -83,7 +89,9 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
   public UnboundedSolaceReader(UnboundedSolaceSource<T> source) {
     this.source = source;
     this.current = null;
+    watermark.getAndSet(System.currentTimeMillis());
     sempVersion = "soltr/8_13";
+    this.readerStats = new SolaceReaderStats();
   }
 
   @Override
@@ -140,6 +148,12 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
       flowReceiver.start();
       LOG.info("Starting Solace session [{}] on queue[{}]...", clientName, source.getQueueName());
 
+
+      //ScheduledExecutorService exec = Executors.newSingleThreadScheduledExecutor();
+      //exec.scheduleAtFixedRate(() -> {
+      //    LOG.info("Stats for Queue [{}] : {}", source.getQueueName()  ,this.readerStats.dumpStats(true));
+      //}, 60, 60, TimeUnit.SECONDS);
+      readerStats.setLastReportTime(Instant.now());
       return advance();
 
     } catch (Exception ex) {
@@ -150,17 +164,22 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 
   @Override
   public boolean advance() throws IOException {
-    // LOG.debug("Advancing Solace session [{}] on queue[{}]..."
-    // , clientName
-    // , source.getQueueName()
-    // );
+    //LOG.info("Advancing Solace session [{}] on queue [{}]...", clientName, source.getQueueName());
+    Instant timeNow = Instant.now();
+    readerStats.setCurrentAdvanceTime(timeNow);
+    long deltaTime = timeNow.getMillis() - readerStats.getLastReportTime().getMillis();
+    if (deltaTime >= 120000l) {
+      LOG.info("Stats for Queue [{}] : {}", source.getQueueName()  ,readerStats.dumpStatsAndClear(true));
+      readerStats.setLastReportTime(timeNow);
+    }
     SolaceIO.ConnectionConfiguration cc = source.getSpec().connectionConfiguration();
     try {
       BytesXMLMessage msg = flowReceiver.receive(cc.getTimeoutInMillis());
       if (msg == null) {
+        readerStats.incrementEmptyPoll();
         return false;
       }
-
+      readerStats.incrementMessageReceived();
       current = this.source.getSpec().messageMapper().mapMessage(msg);
 
       // if using sender timestamps use them, else use current time.
@@ -249,7 +268,8 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
             } catch (Exception e) {
                 LOG.error("Got exception while putting into the blocking queue: {}", e);
             }
-
+            readerStats.setCurrentCheckpointTime(Instant.now());
+            readerStats.incrCheckpointReadyMessages(new Long(ackQueue.size()));
             return new SolaceCheckpointMark(this, clientName, ackQueue);
         } else {
             return new UnboundedSource.CheckpointMark() {
@@ -324,20 +344,6 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
       return UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
     }
     LOG.debug("getSplitBacklogBytes() Reporting backlog bytes of: {} from queue {}", 
-        Long.toString(backlogBytes), source.getQueueName());
-    return backlogBytes;
-  }
-
-  @Override
-  public long getTotalBacklogBytes() {
-    LOG.debug("Enter getTotalBacklogBytes()");
-    long backlogBytes = 0;
-    long queuBacklog = queryQueueBytes(source.getQueueName(), source.getVpnName());
-    if (queuBacklog == UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN) {
-      LOG.error("getTotalBacklogBytes() unable to read bytes from: {}", source.getQueueName());
-      return UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
-    }
-    LOG.debug("getTotalBacklogBytes() Reporting backlog bytes of: {} from queue {}", 
         Long.toString(backlogBytes), source.getQueueName());
     return backlogBytes;
   }
