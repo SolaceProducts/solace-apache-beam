@@ -303,7 +303,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 
   public long queryQueueBytes(String queueName, String vpnName) {
     LOG.debug("Enter queryQueueBytes() Queue: [{}] VPN: [{}]",  queueName, vpnName);
-    long queueBytes = 0;
+    long queueBytes = UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
     String sempShowQueue = "<rpc semp-version=\"" + sempVersion + "\">";
     sempShowQueue += "<show><queue><name>" + queueName + "</name>";
     sempShowQueue += "<vpn-name>" + vpnName + "</vpn-name></queue></show></rpc>";
@@ -337,12 +337,12 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
   @Override
   public long getSplitBacklogBytes() {
     LOG.debug("Enter getSplitBacklogBytes()");
-    long backlogBytes = 0;
-    long queuBacklog = queryQueueBytes(source.getQueueName(), source.getVpnName());
-    if (queuBacklog == UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN) {
+     long backlogBytes = queryQueueBytes(source.getQueueName(), source.getVpnName());
+    if (backlogBytes == UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN) {
       LOG.error("getSplitBacklogBytes() unable to read bytes from: {}", source.getQueueName());
       return UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
     }
+    readerStats.setCurrentBacklog(new Long(backlogBytes));
     LOG.debug("getSplitBacklogBytes() Reporting backlog bytes of: {} from queue {}", 
         Long.toString(backlogBytes), source.getQueueName());
     return backlogBytes;

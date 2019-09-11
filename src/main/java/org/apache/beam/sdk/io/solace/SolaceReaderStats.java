@@ -21,6 +21,7 @@ class SolaceReaderStats implements Serializable {
     private Instant currentAdvanceTime;
     private Instant currentCheckpointTime;
     private Instant lastReportTime;
+    private Long currentBacklogBytes;
     private Long checkpointReadyMessages; 
     private Long checkpointCompleteMessages; 
 
@@ -32,6 +33,7 @@ class SolaceReaderStats implements Serializable {
     private void zeroStats() {
         emptyPoll=0L;
         msgRecieved=0L;
+        currentBacklogBytes=0L;
         checkpointReadyMessages=0L;
         checkpointCompleteMessages=0L;
     }
@@ -60,6 +62,10 @@ class SolaceReaderStats implements Serializable {
         this.currentCheckpointTime = time;
     }
 
+    public void setCurrentBacklog(Long bytes) {
+        this.currentBacklogBytes = bytes;
+    }
+
     public void incrCheckpointReadyMessages(Long count){
         checkpointReadyMessages = checkpointReadyMessages + count;
     }
@@ -76,6 +82,7 @@ class SolaceReaderStats implements Serializable {
     
     public String dumpStats(Boolean verbose) {
         String results="{";
+        results += "\"queueBacklog\":"               + Long.toString(currentBacklogBytes)        + ",";
         results += "\"emptyPolls\":"                 + Long.toString(emptyPoll)                  + ",";
         results += "\"messagesReceived\":"           + Long.toString(msgRecieved)                + ",";
         results += "\"messagesCheckpointReady\":"    + Long.toString(checkpointReadyMessages)    + ",";
