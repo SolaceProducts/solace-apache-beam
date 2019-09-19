@@ -55,6 +55,9 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
   private String currentMessageId;
   private T current;
   private Instant currentTimestamp;
+  private final int defaultReadTimeoutMs = 500; 
+  private final int minReadTimeoutMs = 1; 
+  private final long statsPeriodMs = 120000;
   public final SolaceReaderStats readerStats;
   AtomicLong watermark = new AtomicLong(0);
 
@@ -146,7 +149,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
       flowReceiver = session.createFlow(null, flow_prop, endpointProps);
       // Start the consumer
       flowReceiver.start();
-      LOG.info("Starting Solace session [{}] on queue[{}]...", clientName, source.getQueueName());
+      LOG.info("Starting Solace session [{}] on queue[{}]...", this.clientName, source.getQueueName());
 
 
       //ScheduledExecutorService exec = Executors.newSingleThreadScheduledExecutor();
@@ -164,17 +167,22 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 
   @Override
   public boolean advance() throws IOException {
-    //LOG.info("Advancing Solace session [{}] on queue [{}]...", clientName, source.getQueueName());
+    //LOG.debug("Advancing Solace session [{}] on queue [{}]...", this.clientName, source.getQueueName());
     Instant timeNow = Instant.now();
     readerStats.setCurrentAdvanceTime(timeNow);
     long deltaTime = timeNow.getMillis() - readerStats.getLastReportTime().getMillis();
-    if (deltaTime >= 120000l) {
-      LOG.info("Stats for Queue [{}] : {}", source.getQueueName()  ,readerStats.dumpStatsAndClear(true));
+    if (deltaTime >= this.statsPeriodMs) {
+      LOG.info("Stats for Solace session [{}] on Queue [{}] : {}", this.clientName , source.getQueueName()  ,readerStats.dumpStatsAndClear(true));
       readerStats.setLastReportTime(timeNow);
     }
     SolaceIO.ConnectionConfiguration cc = source.getSpec().connectionConfiguration();
     try {
-      BytesXMLMessage msg = flowReceiver.receive(cc.getTimeoutInMillis());
+      int timeOut = cc.getTimeoutInMillis();
+      if (timeOut < this.minReadTimeoutMs) {
+        LOG.warn("Resetting receive timeout to default for [{}]", this.clientName);
+        timeOut = this.defaultReadTimeoutMs;
+      }
+      BytesXMLMessage msg = flowReceiver.receive(timeOut);
       if (msg == null) {
         readerStats.incrementEmptyPoll();
         return false;
@@ -194,9 +202,9 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
         currentTimestamp = Instant.now();
       }
 
-      //Get messageID for de-dupping, best to use ApplicationMessageID and MessageID resets over connections
+      //Get messageID for de-dupping, best to use Producer Sequence Number as MessageID resets over connections
       if (useSenderMessageId) {
-        currentMessageId = msg.getApplicationMessageId();
+        currentMessageId = msg.getSequenceNumber().toString();
         if (currentMessageId == null) {
           currentMessageId = msg.getMessageId();
         }
@@ -350,7 +358,6 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 
   @Override
   public byte[] getCurrentRecordId() {
-    LOG.debug("Enter getCurrentRecordId()");
     return currentMessageId.getBytes();
   }
 }
