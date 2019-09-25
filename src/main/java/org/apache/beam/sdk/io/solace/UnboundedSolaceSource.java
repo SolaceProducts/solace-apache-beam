@@ -31,10 +31,6 @@ class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpointMark> 
     return queueName;
   }
 
-  public String getVpnName() {
-    SolaceIO.ConnectionConfiguration cc = spec.connectionConfiguration();
-    return cc.getVpn();
-  }
 
   public UnboundedSolaceSource(SolaceIO.Read<T> spec) {
     this.spec = spec;

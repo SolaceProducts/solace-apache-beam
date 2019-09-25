@@ -18,8 +18,14 @@ import javax.xml.xpath.XPathFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.Serializable;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.ProtocolException;
+import java.net.URL;
 import java.time.Duration;
+import java.util.Base64;
 import java.util.LinkedList;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -49,15 +55,17 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
   private boolean isAutoAck;
   private boolean useSenderTimestamp;
   private boolean useSenderMessageId;
+  private boolean useFroceActive;
   private String clientName;
-  private Topic sempTopic;
-  private String sempVersion;
+  private Topic sempShowTopic;
+  private Topic sempAdminTopic;
   private String currentMessageId;
   private T current;
   private Instant currentTimestamp;
   private final int defaultReadTimeoutMs = 500; 
   private final int minReadTimeoutMs = 1; 
   private final long statsPeriodMs = 120000;
+  private final int disconnectLoopGard = 10;
   public final SolaceReaderStats readerStats;
   AtomicLong watermark = new AtomicLong(0);
 
@@ -93,7 +101,6 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
     this.source = source;
     this.current = null;
     watermark.getAndSet(System.currentTimeMillis());
-    sempVersion = "soltr/8_13";
     this.readerStats = new SolaceReaderStats();
   }
 
@@ -120,8 +127,10 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
       session.connect();
 
       String routerName = (String) session.getCapability(CapabilityType.PEER_ROUTER_NAME);
-      final String sempTopicString = String.format("#SEMP/%s/SHOW", routerName);
-      sempTopic = JCSMPFactory.onlyInstance().createTopic(sempTopicString);
+      final String sempShowTopicString = String.format("#SEMP/%s/SHOW", routerName);
+      sempShowTopic = JCSMPFactory.onlyInstance().createTopic(sempShowTopicString);
+      final String sempAdminTopicString = String.format("#SEMP/%s/ADMIN/CLIENT", routerName);
+      sempAdminTopic = JCSMPFactory.onlyInstance().createTopic(sempAdminTopicString);
 
       // do NOT provision the queue, so "Unknown Queue" exception will be threw if the
       // queue is not existed already
@@ -131,7 +140,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
       final ConsumerFlowProperties flow_prop = new ConsumerFlowProperties();
       flow_prop.setEndpoint(queue);
 
-      isAutoAck = spec.connectionConfiguration().isAutoAck();
+      isAutoAck = cc.isAutoAck();
       if (isAutoAck) {
         // auto ack the messages
         flow_prop.setAckMode(JCSMPProperties.SUPPORTED_MESSAGE_ACK_AUTO);
@@ -140,8 +149,9 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
         flow_prop.setAckMode(JCSMPProperties.SUPPORTED_MESSAGE_ACK_CLIENT);
       }
 
-      this.useSenderTimestamp = spec.connectionConfiguration().isSenderTimestamp();
-      this.useSenderMessageId = spec.connectionConfiguration().isSenderMessageId();
+      this.useSenderTimestamp = cc.isSenderTimestamp();
+      this.useSenderMessageId = cc.isSenderMessageId();
+      this.useFroceActive     = cc.isForceActive();
 
       EndpointProperties endpointProps = new EndpointProperties();
       endpointProps.setAccessType(EndpointProperties.ACCESSTYPE_EXCLUSIVE);
@@ -150,13 +160,35 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
       // Start the consumer
       flowReceiver.start();
       LOG.info("Starting Solace session [{}] on queue[{}]...", this.clientName, source.getQueueName());
-
-
-      //ScheduledExecutorService exec = Executors.newSingleThreadScheduledExecutor();
-      //exec.scheduleAtFixedRate(() -> {
-      //    LOG.info("Stats for Queue [{}] : {}", source.getQueueName()  ,this.readerStats.dumpStats(true));
-      //}, 60, 60, TimeUnit.SECONDS);
       readerStats.setLastReportTime(Instant.now());
+      if (useFroceActive) {
+        //LOG.info("AdminUsername [{}] AdminPassword[{}]...", cc.getAdminUsername(), cc.getAdminPassword());
+        // Check if username and password is set, throw exception now, not at disconnect time, as that might happen some time later.
+        if (cc.getAdminUsername() == null || cc.getAdminUsername().isEmpty()) {
+          throw new NoSuchElementException("Admin Username not set, cannot disconnect clients");
+        }
+        if (cc.getAdminPassword() == null || cc.getAdminPassword().isEmpty()) {
+          throw new NoSuchElementException("Admin Password not set, cannot disconnect clients");
+        }
+        boolean active = false;
+        int count = 0;
+        while (!active && count < disconnectLoopGard) {
+          String activeFlowClient = queryQueueActiveFlow(source.getQueueName(), cc.getVpn());
+          if (activeFlowClient.equals(this.clientName)) {
+            LOG.info("Active flow for queue[{}] is [{}]...", source.getQueueName(), this.clientName);
+            active = true;
+            break;
+          } else {
+            String disconnectLog = disconnectClient (activeFlowClient, cc.getVpn());
+            LOG.warn("Disconnect Client [{}] for Queue [{}] results [{}]", activeFlowClient, source.getQueueName(), disconnectLog);
+            count++;
+          }
+        }
+        if (!active) {
+          LOG.error("Unable to become active for for Queue [{}] likely deadlock has occured", source.getQueueName());
+        }
+      }
+
       return advance();
 
     } catch (Exception ex) {
@@ -172,17 +204,12 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
     readerStats.setCurrentAdvanceTime(timeNow);
     long deltaTime = timeNow.getMillis() - readerStats.getLastReportTime().getMillis();
     if (deltaTime >= this.statsPeriodMs) {
-      LOG.info("Stats for Solace session [{}] on Queue [{}] : {}", this.clientName , source.getQueueName()  ,readerStats.dumpStatsAndClear(true));
+      LOG.info("Stats for Queue [{}] : {} from client [{}]", source.getQueueName(), readerStats.dumpStatsAndClear(true), this.clientName);
       readerStats.setLastReportTime(timeNow);
     }
     SolaceIO.ConnectionConfiguration cc = source.getSpec().connectionConfiguration();
     try {
-      int timeOut = cc.getTimeoutInMillis();
-      if (timeOut < this.minReadTimeoutMs) {
-        LOG.warn("Resetting receive timeout to default for [{}]", this.clientName);
-        timeOut = this.defaultReadTimeoutMs;
-      }
-      BytesXMLMessage msg = flowReceiver.receive(timeOut);
+      BytesXMLMessage msg = flowReceiver.receive(cc.getTimeoutInMillis());
       if (msg == null) {
         readerStats.incrementEmptyPoll();
         return false;
@@ -216,6 +243,9 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
       if (!isAutoAck) {
         wait4cpQueue.add(new Message(msg, currentTimestamp));
       }
+    } catch (JCSMPException ex) {
+      LOG.warn("JCSMPException for from client [{}] : {}", this.clientName, ex.getMessage());
+      return false;
     } catch (Exception ex) {
       throw new IOException(ex);
     }
@@ -301,6 +331,8 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
     if (current == null) {
       throw new NoSuchElementException();
     }
+
+
     return currentTimestamp;
   }
 
@@ -309,28 +341,86 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
     return source;
   }
 
-  public long queryQueueBytes(String queueName, String vpnName) {
+  private String disconnectClient (String clientNameToDisconnect , String vpnName) {
+    LOG.debug("Enter disconnectClient() Client: [{}] VPN: [{}]",  clientNameToDisconnect, vpnName);
+    String response = "Failed to disconnect client [{}], clientName";
+    SolaceIO.ConnectionConfiguration cc = source.getSpec().connectionConfiguration();
+    clientNameToDisconnect = clientNameToDisconnect.replace("/", "%2F");
+    clientNameToDisconnect = clientNameToDisconnect.replace("#", "%23");
+    String disconnectURL = "http://" + cc.getHost();
+    disconnectURL += ":8080/SEMP/v2/action/msgVpns/" + cc.getVpn() + "/clients/" + clientNameToDisconnect;
+    disconnectURL += "/disconnect";
+    String authenticationURL= cc.getAdminUsername() + ":" + cc.getAdminPassword();
+    LOG.info("Sending disconnect REST call: {}", disconnectURL);
+    String encodedAuthenticationURL = Base64.getEncoder().encodeToString(authenticationURL.getBytes());
+   try {
+    URL url = new URL(disconnectURL);
+    HttpURLConnection con = (HttpURLConnection) url.openConnection();
+    con.setRequestProperty("Content-Type", "application/json");
+    con.setRequestProperty("Authorization", "Basic " + encodedAuthenticationURL);
+    con.setRequestMethod("PUT");
+    con.setDoOutput(true);
+    OutputStreamWriter out = new OutputStreamWriter(
+        con.getOutputStream());
+    out.write("{}");
+    out.close();
+    con.getInputStream();
+    response = con.getResponseMessage();
+   } catch (MalformedURLException ex) {
+    LOG.error("Encountered a MalformedURLException disconnecting client: {}", ex.getMessage());
+   } catch (ProtocolException ex) {
+    LOG.error("Encountered a ProtocolException disconnecting client: {}", ex.getMessage());
+   } catch (IOException ex) {
+    LOG.error("Encountered a IOException disconnecting client: {}", ex.getMessage());
+   }
+    return (response);
+  }
+
+  private String queryRouter(String queryString, String searchString) throws Exception {
+    Requestor requestor = session.createRequestor();
+    ByteArrayInputStream input;
+    BytesXMLMessage requestMsg = JCSMPFactory.onlyInstance().createMessage(BytesXMLMessage.class);
+    requestMsg.writeAttachment(queryString.getBytes());
+    BytesXMLMessage replyMsg = requestor.request(requestMsg, 5000, sempShowTopic);
+    byte[] bytes = new byte[replyMsg.getAttachmentContentLength()];
+    replyMsg.readAttachmentBytes(bytes);
+    input = new ByteArrayInputStream(bytes);
+    DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+    DocumentBuilder builder = factory.newDocumentBuilder();
+    Document doc = builder.parse(input);
+    XPath xpath = XPathFactory.newInstance().newXPath();
+    String expression = searchString;
+    Node node = (Node) xpath.compile(expression).evaluate(doc, XPathConstants.NODE);
+    return node.getTextContent();
+  }
+
+  private String queryQueueActiveFlow(String queueName, String vpnName) {
+    LOG.debug("Enter queryQueueActiveFlow() Queue: [{}] VPN: [{}]",  queueName, vpnName);
+    String aciveFlow = "ACTIVE_FLOW_UNKNOWN_CLIENT";
+    String sempShowQueue = "<rpc><show><queue><name>" + queueName + "</name>";
+    sempShowQueue += "<vpn-name>" + vpnName + "</vpn-name></queue></show></rpc>";
+    String queryString = "/rpc-reply/rpc/show/queue/queues/queue/info/clients/client[is-active/text()='Active-Consumer']/name";
+    try {
+      aciveFlow = queryRouter(sempShowQueue, queryString);
+    } catch (JCSMPException ex) {
+      LOG.error("Encountered a JCSMPException querying queue active flow: {}", ex.getMessage());
+      return aciveFlow;
+    } catch (Exception ex) {
+      LOG.error("Encountered a Parser Exception querying queue active flow: {}", ex.toString());
+      return aciveFlow;
+    }
+    return aciveFlow;
+  }
+
+  private long queryQueueBytes(String queueName, String vpnName) {
     LOG.debug("Enter queryQueueBytes() Queue: [{}] VPN: [{}]",  queueName, vpnName);
     long queueBytes = UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
-    String sempShowQueue = "<rpc semp-version=\"" + sempVersion + "\">";
-    sempShowQueue += "<show><queue><name>" + queueName + "</name>";
+    String sempShowQueue = "<rpc><show><queue><name>" + queueName + "</name>";
     sempShowQueue += "<vpn-name>" + vpnName + "</vpn-name></queue></show></rpc>";
+    String queryString = "/rpc-reply/rpc/show/queue/queues/queue/info/current-spool-usage-in-bytes";
     try {
-      Requestor requestor = session.createRequestor();
-      BytesXMLMessage requestMsg = JCSMPFactory.onlyInstance().createMessage(BytesXMLMessage.class);
-      requestMsg.writeAttachment(sempShowQueue.getBytes());
-      BytesXMLMessage replyMsg = requestor.request(requestMsg, 5000, sempTopic);
-      ByteArrayInputStream input;
-      byte[] bytes = new byte[replyMsg.getAttachmentContentLength()];
-      replyMsg.readAttachmentBytes(bytes);
-      input = new ByteArrayInputStream(bytes);
-      DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-      DocumentBuilder builder = factory.newDocumentBuilder();
-      Document doc = builder.parse(input);
-      XPath xpath = XPathFactory.newInstance().newXPath();
-      String expression = "/rpc-reply/rpc/show/queue/queues/queue/info/current-spool-usage-in-bytes";
-      Node node = (Node) xpath.compile(expression).evaluate(doc, XPathConstants.NODE);
-      queueBytes = Long.parseLong(node.getTextContent());
+      String queryResults = queryRouter(sempShowQueue, queryString);
+      queueBytes = Long.parseLong(queryResults);
     } catch (JCSMPException ex) {
       LOG.error("Encountered a JCSMPException querying queue depth: {}", ex.getMessage());
       return UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
@@ -345,7 +435,8 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
   @Override
   public long getSplitBacklogBytes() {
     LOG.debug("Enter getSplitBacklogBytes()");
-     long backlogBytes = queryQueueBytes(source.getQueueName(), source.getVpnName());
+    SolaceIO.ConnectionConfiguration cc = source.getSpec().connectionConfiguration();
+     long backlogBytes = queryQueueBytes(source.getQueueName(), cc.getVpn());
     if (backlogBytes == UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN) {
       LOG.error("getSplitBacklogBytes() unable to read bytes from: {}", source.getQueueName());
       return UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;

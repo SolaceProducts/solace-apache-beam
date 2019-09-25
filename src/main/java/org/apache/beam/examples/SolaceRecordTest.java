@@ -105,6 +105,14 @@ public class SolaceRecordTest {
               String getCp();
               void setCp(String value);
 
+              @Description("Admin username")
+              String getAu();
+              void setAu(String value);
+
+              @Description("Admin password")
+              String getAp();
+              void setAp(String value);
+
               @Description("List of queues for subscribing")
               String getSql();
               void setSql(String value);
@@ -123,6 +131,11 @@ public class SolaceRecordTest {
               @Default.Boolean(false)
               boolean getSmi();
               void setSmi(boolean value);
+
+              @Description("Enable ability for UnboundedReader to force activity on queue binding")
+              @Default.Boolean(false)
+              boolean getFa();
+              void setFa(boolean value);
 
               @Description("The timeout in milliseconds while try to receive a messages from Solace broker")
               @Default.Integer(100)
@@ -146,9 +159,12 @@ public class SolaceRecordTest {
             .withConnectionConfiguration(SolaceIO.ConnectionConfiguration.create(options.getCip(), queues)
             .withUsername(options.getCu())
             .withPassword(options.getCp())
+            .withAdminUsername(options.getAu())
+            .withAdminPassword(options.getAp())
             .withAutoAck(options.getAuto())
             .withSenderTimestamp(options.getSts())
             .withSenderMessageId(options.getSmi())
+            .withForceActive(options.getFa())
             .withTimeout(options.getTimeout()))
             .withCoder(SolaceTextRecord.getCoder())
             .withMessageMapper(SolaceTextRecord.getMapper())
