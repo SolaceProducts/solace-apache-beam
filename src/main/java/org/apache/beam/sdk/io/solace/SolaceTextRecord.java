@@ -197,14 +197,29 @@ public class SolaceTextRecord implements Serializable {
           properties.put(key, map.get(key));
         }
       }
+      String msgData  = ""; 
+      if (msg.getContentLength() != 0 ) {
+       msgData += new String(msg.getBytes(), StandardCharsets.UTF_8);
+      }
+      if (msg.getAttachmentContentLength() != 0 ) {
+        msgData += new String(msg.getAttachmentByteBuffer().array(), StandardCharsets.UTF_8);
+      }
 
-      return new SolaceTextRecord(msg.getDestination().getName(), msg.getExpiration(), 
-          msg.getMessageIdLong(), msg.getPriority(), msg.getRedelivered(),
-          // null means no replyto property
-          (msg.getReplyTo() != null) ? msg.getReplyTo().getName() : null, msg.getReceiveTimestamp(),
-          // 0 means no SenderTimestamp
-          (msg.getSenderTimestamp() != null) ? msg.getSenderTimestamp() : 0, msg.getSenderId(), 
-          msg.getTimeToLive(), properties, new String(msg.getBytes(), StandardCharsets.UTF_8));
+      return new SolaceTextRecord(
+        msg.getDestination().getName(), 
+        msg.getExpiration(), 
+        msg.getMessageIdLong(), 
+        msg.getPriority(), 
+        msg.getRedelivered(),
+        // null means no replyto property
+        (msg.getReplyTo() != null) ? msg.getReplyTo().getName() : null, 
+        msg.getReceiveTimestamp(),
+        // 0 means no SenderTimestamp
+        (msg.getSenderTimestamp() != null) ? msg.getSenderTimestamp() : 0, 
+        msg.getSenderId(), 
+        msg.getTimeToLive(), 
+        properties, 
+        msgData);
     }
   }
 
