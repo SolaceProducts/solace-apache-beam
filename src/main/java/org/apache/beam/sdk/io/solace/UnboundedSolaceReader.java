@@ -3,6 +3,7 @@ package org.apache.beam.sdk.io.solace;
 import com.google.common.annotations.VisibleForTesting;
 import com.solacesystems.jcsmp.*;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Longs;
 import org.joda.time.Instant;
 import org.joda.time.LocalTime;
 import org.slf4j.Logger;
@@ -59,7 +60,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
   private String clientName;
   private Topic sempShowTopic;
   private Topic sempAdminTopic;
-  private String currentMessageId;
+  private byte[] currentMessageId;
   private T current;
   private Instant currentTimestamp;
   private final int defaultReadTimeoutMs = 500; 
@@ -231,12 +232,14 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 
       //Get messageID for de-dupping, best to use Producer Sequence Number as MessageID resets over connections
       if (useSenderMessageId) {
-        currentMessageId = msg.getSequenceNumber().toString();
-        if (currentMessageId == null) {
-          currentMessageId = msg.getMessageId();
+        Long seqNum = msg.getSequenceNumber();
+        if (seqNum == null) {
+          currentMessageId = msg.getMessageId().getBytes();
+        } else {
+          currentMessageId = Longs.toByteArray(seqNum);
         }
       } else {
-        currentMessageId = msg.getMessageId();
+        currentMessageId = msg.getMessageId().getBytes();
       }
 
       // add message to checkpoint ack if not autoack
@@ -449,6 +452,6 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 
   @Override
   public byte[] getCurrentRecordId() {
-    return currentMessageId.getBytes();
+    return currentMessageId;
   }
 }
