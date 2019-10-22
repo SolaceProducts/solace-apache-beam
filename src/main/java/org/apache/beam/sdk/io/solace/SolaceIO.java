@@ -75,12 +75,6 @@ public class SolaceIO {
 
     @Nullable
     abstract String getPassword();
-
-    @Nullable
-    abstract String getAdminUsername();
-
-    @Nullable
-    abstract String getAdminPassword();
     
     abstract boolean isAutoAck();
     
@@ -88,7 +82,7 @@ public class SolaceIO {
 
     abstract boolean isSenderMessageId();
 
-    abstract boolean isForceActive();
+  
 
     // The timeout in milliseconds while try to receive a messages from Solace
     // broker
@@ -110,17 +104,12 @@ public class SolaceIO {
 
       abstract Builder setPassword(String password);
 
-      abstract Builder setAdminUsername(String adminUsername);
-
-      abstract Builder setAdminPassword(String adminPassword);
-
       abstract Builder setAutoAck(boolean autoAck);
 
       abstract Builder setSenderTimestamp(boolean useSenderTimestamp);
 
       abstract Builder setSenderMessageId(boolean useSenderMessageId);
 
-      abstract Builder setForceActive(boolean useForceActive);    
 
       abstract Builder setTimeoutInMillis(int timeoutInMillis);
       
@@ -140,9 +129,8 @@ public class SolaceIO {
           .setQueues(queues)
           .setAutoAck(false)
           .setSenderTimestamp(false)
-          .setSenderMessageId(false)
-          .setForceActive(false)         
-          .setTimeoutInMillis(100)
+          .setSenderMessageId(false)  
+          .setTimeoutInMillis(500)
           .build();
     }
 
@@ -171,14 +159,6 @@ public class SolaceIO {
       return builder().setPassword(password).build();
     }
 
-    public ConnectionConfiguration withAdminUsername(String adminUsername) {
-      return builder().setAdminUsername(adminUsername).build();
-    }
-
-    public ConnectionConfiguration withAdminPassword(String adminPassword) {
-      return builder().setAdminPassword(adminPassword).build();
-    }
-
     public ConnectionConfiguration withAutoAck(boolean autoAck) {
       return builder().setAutoAck(autoAck).build();
     }
@@ -189,10 +169,6 @@ public class SolaceIO {
 
     public ConnectionConfiguration withSenderMessageId(boolean useSenderMessageId) {
       return builder().setSenderMessageId(useSenderMessageId).build();
-    }
-
-    public ConnectionConfiguration withForceActive(boolean useForceActive) {
-      return builder().setForceActive(useForceActive).build();
     }
 
     public ConnectionConfiguration withTimeout(int timeoutInMillis) {
