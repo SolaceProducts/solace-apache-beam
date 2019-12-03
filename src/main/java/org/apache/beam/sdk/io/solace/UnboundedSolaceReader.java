@@ -100,7 +100,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
   private class ActivityMonitor<T> extends Thread {
     private UnboundedSolaceReader<T> reader;
     private int timeout;
-    private final int debounce = 60;
+    private final int debounce = 300;
 
     protected ActivityMonitor (UnboundedSolaceReader<T> reader, int timeout) {
       this.reader = reader;
@@ -113,6 +113,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
           Thread.sleep(timeout * debounce);
           if (!reader.isActive.get()) {
             reader.flowReceiver.close();
+            reader.readerStats.incrementMonitorFlowClose();
           }
           reader.isActive.set(false);
         } catch (Exception ex) {

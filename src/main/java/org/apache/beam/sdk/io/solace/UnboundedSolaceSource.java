@@ -49,7 +49,7 @@ class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpointMark> 
   @Override
   public List<UnboundedSolaceSource<T>> split(int desiredNumSplits, PipelineOptions options) {
     SolaceIO.ConnectionConfiguration cc = spec.connectionConfiguration();
-    LOG.debug("Queue Numbers: {}, desiredNumSplits: {}, PipelineOptions: {}",
+    LOG.info("Queue Numbers: {}, desiredNumSplits: {}, PipelineOptions: {}",
         cc.getQueues().size(), desiredNumSplits, options);
 
     List<UnboundedSolaceSource<T>> sourceList = new ArrayList<>();

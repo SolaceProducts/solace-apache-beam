@@ -25,6 +25,7 @@ class SolaceReaderStats implements Serializable {
     private Long checkpointReadyMessages; 
     private Long checkpointCompleteMessages; 
     private Long monitorChecks;
+    private Long monitorFlowClose;
 
 
     public SolaceReaderStats(){
@@ -38,6 +39,7 @@ class SolaceReaderStats implements Serializable {
         checkpointReadyMessages=0L;
         checkpointCompleteMessages=0L;
         monitorChecks=0L;
+        monitorFlowClose=0L;
     }
 
     public void incrementEmptyPoll() {
@@ -50,6 +52,10 @@ class SolaceReaderStats implements Serializable {
 
     public void incrementMonitorChecks() {
         monitorChecks++;
+    }
+
+    public void incrementMonitorFlowClose() {
+        monitorFlowClose++;
     }
 
     public void setLastReportTime(Instant time) {
@@ -93,7 +99,8 @@ class SolaceReaderStats implements Serializable {
         results += "\"messagesReceived\":"           + Long.toString(msgRecieved)                + ",";
         results += "\"messagesCheckpointReady\":"    + Long.toString(checkpointReadyMessages)    + ",";
         results += "\"messagesCheckpointComplete\":" + Long.toString(checkpointCompleteMessages) + ",";
-        results += "\"monitorChecks\":"              + Long.toString(monitorChecks)              + "}";
+        results += "\"monitorChecks\":"              + Long.toString(monitorChecks)              + ",";       
+        results += "\"monitorFlowClose\":"           + Long.toString(monitorFlowClose)            + "}";
         return results;
     }
 
