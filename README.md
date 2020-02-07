@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/SolaceLabs/solace-beam-unboundedSource.svg?branch=master)](https://travis-ci.org/SolaceLabs/solace-beam-unboundedSource)
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2FSolaceLabs%2Fsolace-beam-unboundedSource.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2FSolaceLabs%2Fsolace-beam-unboundedSource?ref=badge_shield)
 
 # solace-beam-unboundedSource
 
@@ -143,6 +144,9 @@ See the list of [contributors](../../graphs/contributors) who participated in th
 ## License
 
 This project is licensed under the Apache License, Version 2.0. - See the [LICENSE](LICENSE) file for details.
+
+
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2FSolaceLabs%2Fsolace-beam-unboundedSource.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2FSolaceLabs%2Fsolace-beam-unboundedSource?ref=badge_large)
 
 ## Resources
 
