@@ -321,11 +321,8 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
             readerStats.incrCheckpointReadyMessages(new Long(ackQueue.size()));
             return new SolaceCheckpointMark(this, clientName, ackQueue);
         } else {
-            return new UnboundedSource.CheckpointMark() {
-                public void finalizeCheckpoint() throws IOException {
-                    // nothing to do
-                }
-            };
+            BlockingQueue<Message> ackQueue = new LinkedBlockingQueue<>();
+            return new SolaceCheckpointMark(this, clientName, ackQueue);
         }
     }
 
