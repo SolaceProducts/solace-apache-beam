@@ -4,6 +4,10 @@
 # Eclipse
 .classpath
 
+# Intellij
+.idea
+*.iml
+
 # Maven Build settings
 .project
 .factorypath

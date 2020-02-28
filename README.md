@@ -125,7 +125,7 @@ Load 100 10-byte test messages onto the new message broker:
 
 Bring up a SolaceIO example on a local runner to consume the messages:
 ```yaml
- - mvn -e compile exec:java -Dexec.mainClass=org.apache.beam.examples.SolaceRecordTest -Dexec.args="--output=DR100A --cip=${SOLACE_URI} --cu=${USERNAME}@${SOLACE_VPN} --cp=${PASSWORD} --sql=Q/fx-001" > /dev/null 2> output.log &
+ - mvn -e compile exec:java -Dexec.mainClass=com.solace.apache.beam.examples.SolaceRecordTest -Dexec.args="--output=DR100A --cip=${SOLACE_URI} --cu=${USERNAME}@${SOLACE_VPN} --cp=${PASSWORD} --sql=Q/fx-001" > /dev/null 2> output.log &
 ```
 
  Validate the messages where received and acknowledged:
