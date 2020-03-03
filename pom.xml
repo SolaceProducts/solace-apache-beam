@@ -23,12 +23,45 @@
   <groupId>com.solace.apache.beam</groupId>
   <artifactId>solace-apache-beam-parent</artifactId>
   <version>1.0.0-SNAPSHOT</version>
-
   <packaging>pom</packaging>
 
+  <name>Apache Beam Solace PubSub+ I/O</name>
+  <description>Apache Beam I/O Component for Solace PubSub+</description>
+  <url>https://github.com/${repoName}/solace-apache-beam/tree/${project.scm.tag}</url>
+
   <properties>
+    <repoName>SolaceProducts</repoName>
     <beam.version>2.16.0</beam.version>
   </properties>
+
+  <licenses>
+    <license>
+      <name>Apache License, Version 2.0</name>
+      <url>https://github.com/${repoName}/solace-apache-beam/blob/master/LICENSE</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <name>Support for Solace</name>
+      <email>support@solace.com</email>
+      <organization>Solace</organization>
+      <organizationUrl>http://solace.community</organizationUrl>
+    </developer>
+  </developers>
+
+  <organization>
+    <name>Solace</name>
+    <url>https://www.solace.com</url>
+  </organization>
+
+  <scm>
+    <url>https://github.com/${repoName}/solace-apache-beam.git</url>
+    <connection>scm:git:git://github.com/${repoName}/solace-apache-beam.git</connection>
+    <developerConnection>scm:git:git@github.com:${repoName}/solace-apache-beam.git</developerConnection>
+    <tag>HEAD</tag>
+  </scm>
 
   <modules>
     <module>beam-sdks-java-io-solace</module>
