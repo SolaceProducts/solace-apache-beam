@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -20,16 +21,19 @@ class SolaceCheckpointMark implements UnboundedSource.CheckpointMark, Serializab
     private static final long serialVersionUID = 42L;
     private static final Logger LOG = LoggerFactory.getLogger(SolaceCheckpointMark.class);
 
-    @Nullable private transient UnboundedSolaceReader reader;
+    private final UUID id;
+    @Nullable private transient UnboundedSolaceReader<?> reader;
     private String clientName;
     private transient BlockingQueue<UnboundedSolaceReader.Message> ackQueue;
 
-    public SolaceCheckpointMark(UnboundedSolaceReader reader,
+    public SolaceCheckpointMark(UnboundedSolaceReader<?> reader,
                                 String clientName,
                                 BlockingQueue<UnboundedSolaceReader.Message> ackQueue){
+        this.id = UUID.randomUUID();
         this.reader = reader;
         this.clientName = clientName;
         this.ackQueue = ackQueue;
+        LOG.debug(String.format("Created %s %s", this.getClass().getSimpleName(), this.id));
       }
 
 
@@ -39,9 +43,11 @@ class SolaceCheckpointMark implements UnboundedSource.CheckpointMark, Serializab
             if (!reader.active.get()){
                 return;
             }
+            LOG.debug(String.format("Started to finalize %s %s", this.getClass().getSimpleName(), this.id));
+
             int ackListSize = ackQueue.size();
             try {
-                while(ackQueue.size()>0){
+                while(ackQueue.size() > 0){
                     UnboundedSolaceReader.Message msg = ackQueue.poll(0, TimeUnit.NANOSECONDS);
 
                     if (msg != null) {
@@ -59,7 +65,8 @@ class SolaceCheckpointMark implements UnboundedSource.CheckpointMark, Serializab
                 }
             reader.readerStats.incrCheckpointCompleteMessages(new Long (ackListSize));
             }catch(Exception e){
-                LOG.error("Got exception while acking the message: {}", e);
+                LOG.error(String.format("Got exception while acknowledging %s %s: %s",
+                        this.getClass().getSimpleName(), this.id, e.toString()), e);
                 throw new IOException(e);
             }
         }
