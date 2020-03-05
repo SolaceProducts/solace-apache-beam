@@ -16,3 +16,6 @@
 # Maven Artifacts 
 target
 .flattened-pom.xml
+
+# Sample Output
+.temp-beam-*
