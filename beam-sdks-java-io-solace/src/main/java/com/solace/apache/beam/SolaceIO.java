@@ -76,8 +76,6 @@ public class SolaceIO {
     @Nullable
     abstract String getPassword();
 
-    abstract boolean isAutoAck();
-
     abstract boolean isSenderTimestamp();
 
     abstract boolean isSenderMessageId();
@@ -104,8 +102,6 @@ public class SolaceIO {
 
       abstract Builder setPassword(String password);
 
-      abstract Builder setAutoAck(boolean autoAck);
-
       abstract Builder setSenderTimestamp(boolean useSenderTimestamp);
 
       abstract Builder setSenderMessageId(boolean useSenderMessageId);
@@ -127,7 +123,6 @@ public class SolaceIO {
       return new AutoValue_SolaceIO_ConnectionConfiguration.Builder()
           .setHost(host)
           .setQueues(queues)
-          .setAutoAck(false)
           .setSenderTimestamp(false)
           .setSenderMessageId(false)
           .setTimeoutInMillis(500)
@@ -157,10 +152,6 @@ public class SolaceIO {
 
     public ConnectionConfiguration withPassword(String password) {
       return builder().setPassword(password).build();
-    }
-
-    public ConnectionConfiguration withAutoAck(boolean autoAck) {
-      return builder().setAutoAck(autoAck).build();
     }
 
     public ConnectionConfiguration withSenderTimestamp(boolean useSenderTimestamp) {

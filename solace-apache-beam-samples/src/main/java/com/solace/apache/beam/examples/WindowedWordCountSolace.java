@@ -103,11 +103,6 @@ public class WindowedWordCountSolace {
               String getSql();
               void setSql(String value);
 
-              @Description("Enable auto ack for all GD msgs. (default **client** ack)")
-              @Default.Boolean(false)
-              boolean getAuto();
-              void setAuto(boolean value);
-
               @Description("Enable reading sender timestamp to deturmine freashness of data")
               @Default.Boolean(false)
               boolean getSts();
@@ -142,7 +137,6 @@ public class WindowedWordCountSolace {
                   options.getCip(), queues)
               .withUsername(options.getCu())
               .withPassword(options.getCp())
-              .withAutoAck(options.getAuto())
               .withSenderTimestamp(options.getSts())
               .withSenderMessageId(options.getSmi())
               .withTimeout(options.getTimeout()))

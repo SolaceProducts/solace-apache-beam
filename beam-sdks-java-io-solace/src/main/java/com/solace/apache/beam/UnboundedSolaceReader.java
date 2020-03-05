@@ -63,7 +63,6 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
   private final UnboundedSolaceSource<T> source;
   private JCSMPSession session;
   protected FlowReceiver flowReceiver;
-  private boolean isAutoAck;
   private boolean useSenderTimestamp;
   private boolean useSenderMessageId;
   private String clientName;
@@ -167,14 +166,9 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 
       // Create a Flow be able to bind to and consume messages from the Queue.
       flow_prop.setEndpoint(queue);
-      isAutoAck = cc.isAutoAck();
-      if (isAutoAck) {
-        // auto ack the messages
-        flow_prop.setAckMode(JCSMPProperties.SUPPORTED_MESSAGE_ACK_AUTO);
-      } else {
-        // will ack the messages in checkpoint
-        flow_prop.setAckMode(JCSMPProperties.SUPPORTED_MESSAGE_ACK_CLIENT);
-      }
+
+      // will ack the messages in checkpoint
+      flow_prop.setAckMode(JCSMPProperties.SUPPORTED_MESSAGE_ACK_CLIENT);
 
       this.useSenderTimestamp = cc.isSenderTimestamp();
       this.useSenderMessageId = cc.isSenderMessageId();
@@ -243,10 +237,8 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
         currentMessageId = msg.getMessageId().getBytes();
       }
 
-      // add message to checkpoint ack if not autoack
-      if (!isAutoAck) {
-        wait4cpQueue.add(new Message(msg, currentTimestamp));
-      }
+      // add message to checkpoint ack
+      wait4cpQueue.add(new Message(msg, currentTimestamp));
     } catch (JCSMPException ex) {
       try {
         LOG.info("JCSMPException for from client [{}] : {}", this.clientName, ex.getMessage());
@@ -308,26 +300,21 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 
     @Override
     public UnboundedSource.CheckpointMark getCheckpointMark() {
-        if (!isAutoAck) {
-            // put all messages in wait4cp to safe2ack
-            // and clean the wait4cp queue in the same time
-            BlockingQueue<Message> ackQueue = new LinkedBlockingQueue<>();
-            try {
-                Message msg = wait4cpQueue.poll();
-                while (msg != null) {
-                    ackQueue.put(msg);
-                    msg = wait4cpQueue.poll();
-                }
-            } catch (Exception e) {
-                LOG.error("Got exception while putting into the blocking queue: {}", e);
-            }
-            readerStats.setCurrentCheckpointTime(Instant.now());
-            readerStats.incrCheckpointReadyMessages(new Long(ackQueue.size()));
-            return new SolaceCheckpointMark(this, clientName, ackQueue);
-        } else {
-            BlockingQueue<Message> ackQueue = new LinkedBlockingQueue<>();
-            return new SolaceCheckpointMark(this, clientName, ackQueue);
-        }
+      // put all messages in wait4cp to safe2ack
+      // and clean the wait4cp queue in the same time
+      BlockingQueue<Message> ackQueue = new LinkedBlockingQueue<>();
+      try {
+          Message msg = wait4cpQueue.poll();
+          while (msg != null) {
+              ackQueue.put(msg);
+              msg = wait4cpQueue.poll();
+          }
+      } catch (Exception e) {
+          LOG.error(String.format("Got exception while putting into the blocking queue: %s", e.toString()), e);
+      }
+      readerStats.setCurrentCheckpointTime(Instant.now());
+      readerStats.incrCheckpointReadyMessages(new Long(ackQueue.size()));
+      return new SolaceCheckpointMark(this, clientName, ackQueue);
     }
 
   @Override
