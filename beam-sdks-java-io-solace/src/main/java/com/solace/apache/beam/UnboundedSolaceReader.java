@@ -1,21 +1,5 @@
 package com.solace.apache.beam;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.LinkedList;
-import java.util.NoSuchElementException;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
-
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.xpath.XPath;
-import javax.xml.xpath.XPathConstants;
-import javax.xml.xpath.XPathFactory;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.CapabilityType;
@@ -32,7 +16,6 @@ import com.solacesystems.jcsmp.Requestor;
 import com.solacesystems.jcsmp.Topic;
 import com.solacesystems.jcsmp.XMLMessageConsumer;
 import com.solacesystems.jcsmp.XMLMessageListener;
-
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Longs;
@@ -41,6 +24,28 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathFactory;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.Serializable;
+import java.io.StringWriter;
+import java.util.LinkedList;
+import java.util.NoSuchElementException;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 
 
@@ -359,9 +364,22 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
     DocumentBuilder builder = factory.newDocumentBuilder();
     Document doc = builder.parse(input);
     XPath xpath = XPathFactory.newInstance().newXPath();
-    String expression = searchString;
-    Node node = (Node) xpath.compile(expression).evaluate(doc, XPathConstants.NODE);
+    Node node = (Node) xpath.compile(searchString).evaluate(doc, XPathConstants.NODE);
+    if (node == null || node.getTextContent() == null) {
+      throw new NullPointerException(String.format("Failed to evaluate %s in %s", searchString, printDocument(doc)));
+    }
     return node.getTextContent();
+  }
+
+  public static String printDocument(Document doc) throws TransformerException {
+    TransformerFactory tf = TransformerFactory.newInstance();
+    Transformer transformer = tf.newTransformer();
+    transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "no");
+    transformer.setOutputProperty(OutputKeys.METHOD, "xml");
+    transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
+    StringWriter writer = new StringWriter();
+    transformer.transform(new DOMSource(doc), new StreamResult(writer));
+    return writer.getBuffer().toString();
   }
 
   private long queryQueueBytes(String queueName, String vpnName) {
@@ -373,11 +391,11 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
     try {
       String queryResults = queryRouter(sempShowQueue, queryString);
       queueBytes = Long.parseLong(queryResults);
-    } catch (JCSMPException ex) {
-      LOG.error("Encountered a JCSMPException querying queue depth: {}", ex.getMessage());
+    } catch (JCSMPException e) {
+      LOG.error(String.format("Encountered a JCSMPException querying queue depth: %s", e.getMessage()), e);
       return UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
-    } catch (Exception ex) {
-      LOG.error("Encountered a Parser Exception querying queue depth: {}", ex.toString());
+    } catch (Exception e) {
+      LOG.error(String.format("Encountered a Parser Exception querying queue depth: %s", e.toString()), e);
       return UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
     }
     return queueBytes;
