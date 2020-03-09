@@ -70,13 +70,14 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
   private byte[] currentMessageId;
   private T current;
   private Instant currentTimestamp;
-  private final long statsPeriodMs = 120000;
   private final EndpointProperties endpointProps = new EndpointProperties();
   public final SolaceReaderStats readerStats;
   private ConsumerFlowProperties flow_prop = new ConsumerFlowProperties();
   public AtomicLong watermark = new AtomicLong(0);
   public AtomicBoolean isActive = new AtomicBoolean(true); // Only set to false after timeout
   public AtomicBoolean endMonitor = new AtomicBoolean(false);
+
+  private static final long statsPeriodMs = 120000;
 
 
   /**
@@ -100,10 +101,11 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
     }
   }
 
-  private class ActivityMonitor<T> extends Thread {
+  private static class ActivityMonitor<T> extends Thread {
     private UnboundedSolaceReader<T> reader;
     private int timeout;
-    private final int debounce = 300;
+
+    private static final int debounce = 300;
 
     protected ActivityMonitor (UnboundedSolaceReader<T> reader, int timeout) {
       this.reader = reader;
@@ -137,19 +139,8 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
   @Override
   public boolean start() throws IOException {
     LOG.info("Starting UnboundSolaceReader for Solace queue: {} ...", source.getQueueName());
-    SolaceIO.Read<T> spec = source.getSpec();
     try {
-      SolaceIO.ConnectionConfiguration cc = source.getSpec().connectionConfiguration();
-      final JCSMPProperties properties = new JCSMPProperties();
-      properties.setProperty(JCSMPProperties.HOST, cc.getHost()); // host:port
-      properties.setProperty(JCSMPProperties.USERNAME, cc.getUsername()); // client-username
-      properties.setProperty(JCSMPProperties.PASSWORD, cc.getPassword()); // client-password
-      properties.setProperty(JCSMPProperties.VPN_NAME, cc.getVpn()); // message-vpn
-
-      if (cc.getClientName() != null) {
-        properties.setProperty(JCSMPProperties.CLIENT_NAME, cc.getClientName()); // message-vpn
-      }
-
+      final JCSMPProperties properties = source.getSpec().jcsmpProperties();
       session = JCSMPFactory.onlyInstance().createSession(properties);
       session.getMessageProducer(new PrintingPubCallback());
       XMLMessageConsumer consumer = session.getMessageConsumer((XMLMessageListener)null); consumer.start();
@@ -170,8 +161,8 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
       // will ack the messages in checkpoint
       flow_prop.setAckMode(JCSMPProperties.SUPPORTED_MESSAGE_ACK_CLIENT);
 
-      this.useSenderTimestamp = cc.isSenderTimestamp();
-      this.useSenderMessageId = cc.isSenderMessageId();
+      this.useSenderTimestamp = source.getSpec().useSenderTimestamp();
+      this.useSenderMessageId = source.getSpec().useSenderMessageId();
 
       readerStats.setLastReportTime(Instant.now());
 
@@ -182,7 +173,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
       LOG.info("Binding Solace session [{}] to queue[{}]...", this.clientName, source.getQueueName());
 
       // Create Monitor Thread
-      ActivityMonitor myMonitor = new ActivityMonitor(this, cc.getTimeoutInMillis());
+      ActivityMonitor<T> myMonitor = new ActivityMonitor<>(this, source.getSpec().advanceTimeoutInMillis());
       myMonitor.start();
       return advance();
 
@@ -199,19 +190,18 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
     this.isActive.set(true);
     readerStats.setCurrentAdvanceTime(timeNow);
     long deltaTime = timeNow.getMillis() - readerStats.getLastReportTime().getMillis();
-    if (deltaTime >= this.statsPeriodMs) {
+    if (deltaTime >= statsPeriodMs) {
       LOG.info("Stats for Queue [{}] : {} from client [{}]", source.getQueueName(), readerStats.dumpStatsAndClear(true), this.clientName);
       readerStats.setLastReportTime(timeNow);
     }
-    SolaceIO.ConnectionConfiguration cc = source.getSpec().connectionConfiguration();
     try {
-      BytesXMLMessage msg = flowReceiver.receive(cc.getTimeoutInMillis());
+      BytesXMLMessage msg = flowReceiver.receive(source.getSpec().advanceTimeoutInMillis());
       if (msg == null) {
         readerStats.incrementEmptyPoll();
         return false;
       }
       readerStats.incrementMessageReceived();
-      current = this.source.getSpec().messageMapper().mapMessage(msg);
+      current = this.source.getSpec().inboundMessageMapper().map(msg);
 
       // if using sender timestamps use them, else use current time.
       if (useSenderTimestamp) {
@@ -313,7 +303,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
           LOG.error(String.format("Got exception while putting into the blocking queue: %s", e.toString()), e);
       }
       readerStats.setCurrentCheckpointTime(Instant.now());
-      readerStats.incrCheckpointReadyMessages(new Long(ackQueue.size()));
+      readerStats.incrCheckpointReadyMessages((long) ackQueue.size());
       return new SolaceCheckpointMark(this, clientName, ackQueue);
     }
 
@@ -391,13 +381,13 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
   @Override
   public long getSplitBacklogBytes() {
     LOG.debug("Enter getSplitBacklogBytes()");
-    SolaceIO.ConnectionConfiguration cc = source.getSpec().connectionConfiguration();
-     long backlogBytes = queryQueueBytes(source.getQueueName(), cc.getVpn());
+     long backlogBytes = queryQueueBytes(source.getQueueName(),
+             source.getSpec().jcsmpProperties().getStringProperty(JCSMPProperties.VPN_NAME));
     if (backlogBytes == UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN) {
       LOG.error("getSplitBacklogBytes() unable to read bytes from: {}", source.getQueueName());
       return UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
     }
-    readerStats.setCurrentBacklog(new Long(backlogBytes));
+    readerStats.setCurrentBacklog(backlogBytes);
     LOG.debug("getSplitBacklogBytes() Reporting backlog bytes of: {} from queue {}",
         Long.toString(backlogBytes), source.getQueueName());
     return backlogBytes;

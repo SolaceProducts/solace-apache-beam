@@ -185,11 +185,11 @@ public class SolaceTextRecord implements Serializable {
     return new Mapper();
   }
 
-  public static class Mapper implements SolaceIO.MessageMapper<SolaceTextRecord> {
+  public static class Mapper implements SolaceIO.InboundMessageMapper<SolaceTextRecord> {
     private static final long serialVersionUID = 42L;
 
     @Override
-    public SolaceTextRecord mapMessage(BytesXMLMessage msg) throws Exception {
+    public SolaceTextRecord map(BytesXMLMessage msg) throws Exception {
       Map<String, Object> properties = null;
       SDTMap map = msg.getProperties();
       if (map != null) {

@@ -19,6 +19,7 @@ package com.solace.apache.beam.examples;
 
 import com.solace.apache.beam.SolaceIO;
 import com.solace.apache.beam.examples.common.WriteOneFilePerWindow;
+import com.solacesystems.jcsmp.JCSMPProperties;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.Default;
@@ -38,7 +39,7 @@ import java.util.List;
  * An example that counts words in text, and can run over either unbounded or bounded input
  * collections.
  *
- * <p>This class, {@link WindowedWordCount}, is the last in a series of four successively more
+ * <p>This class, {@link WindowedWordCountSolace}, is the last in a series of four successively more
  * detailed 'word count' examples. First take a look at {@link MinimalWordCount}, {@link WordCount},
  * and {@link DebuggingWordCount}.
  *
@@ -90,9 +91,13 @@ public class WindowedWordCountSolace {
               String getCip();
               void setCip(String value);
 
-              @Description("Client username and optionally VPN name.")
+              @Description("Client username")
               String getCu();
               void setCu(String value);
+
+             @Description("VPN name")
+             String getVpn();
+             void setVpn(String value);
 
               @Description("Client password (default '')")
               @Default.String("")
@@ -125,6 +130,12 @@ public class WindowedWordCountSolace {
 
     Pipeline pipeline = Pipeline.create(options);
 
+      JCSMPProperties jcsmpProperties = new JCSMPProperties();
+      jcsmpProperties.setProperty(JCSMPProperties.HOST, options.getCip());
+      jcsmpProperties.setProperty(JCSMPProperties.VPN_NAME, options.getVpn());
+      jcsmpProperties.setProperty(JCSMPProperties.USERNAME, options.getCu());
+      jcsmpProperties.setProperty(JCSMPProperties.PASSWORD, options.getCp());
+
     /*
      * Concept #1: the Beam SDK lets us run the same pipeline with either a bounded or
      * unbounded input source.
@@ -132,15 +143,10 @@ public class WindowedWordCountSolace {
     PCollection<String> input =
         pipeline
             /* Read from the Solace JMS Server. */
-            .apply(SolaceIO.readAsString()
-              .withConnectionConfiguration(SolaceIO.ConnectionConfiguration.create(
-                  options.getCip(), queues)
-              .withUsername(options.getCu())
-              .withPassword(options.getCp())
-              .withSenderTimestamp(options.getSts())
-              .withSenderMessageId(options.getSmi())
-              .withTimeout(options.getTimeout()))
-          );
+            .apply(SolaceIO.readString(jcsmpProperties, queues)
+                    .withUseSenderTimestamp(options.getSts())
+                    .withUseSenderMessageId(options.getSmi())
+                    .withAdvanceTimeoutInMillis(options.getTimeout()));
 
     /*
      * Concept #3: Window into fixed windows. The fixed window size for this example defaults to 1

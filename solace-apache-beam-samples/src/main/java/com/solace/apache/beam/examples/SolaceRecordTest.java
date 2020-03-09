@@ -20,6 +20,7 @@ package com.solace.apache.beam.examples;
 import java.util.Arrays;
 import java.util.List;
 
+import com.solacesystems.jcsmp.JCSMPProperties;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import com.solace.apache.beam.SolaceIO;
@@ -96,6 +97,10 @@ public class SolaceRecordTest {
               String getCip();
               void setCip(String value);
 
+            @Description("VPN name")
+            String getVpn();
+            void setVpn(String value);
+
               @Description("Client username and optionally VPN name.")
               String getCu();
               void setCu(String value);
@@ -131,22 +136,22 @@ public class SolaceRecordTest {
 
     Pipeline pipeline = Pipeline.create(options);
 
+      JCSMPProperties jcsmpProperties = new JCSMPProperties();
+      jcsmpProperties.setProperty(JCSMPProperties.HOST, options.getCip());
+      jcsmpProperties.setProperty(JCSMPProperties.VPN_NAME, options.getVpn());
+      jcsmpProperties.setProperty(JCSMPProperties.USERNAME, options.getCu());
+      jcsmpProperties.setProperty(JCSMPProperties.PASSWORD, options.getCp());
+
     /*
      * Concept #1: the Beam SDK lets us run the same pipeline with either a bounded or
      * unbounded input source.
      */
     PCollection<SolaceTextRecord> input =
         pipeline
-          .apply(SolaceIO.<SolaceTextRecord>readMessage()
-            .withConnectionConfiguration(SolaceIO.ConnectionConfiguration.create(options.getCip(), queues)
-            .withUsername(options.getCu())
-            .withPassword(options.getCp())
-            .withSenderTimestamp(options.getSts())
-            .withSenderMessageId(options.getSmi())
-            .withTimeout(options.getTimeout()))
-            .withCoder(SolaceTextRecord.getCoder())
-            .withMessageMapper(SolaceTextRecord.getMapper())
-          );
+          .apply(SolaceIO.read(jcsmpProperties, queues, SolaceTextRecord.getCoder(), SolaceTextRecord.getMapper())
+                  .withUseSenderTimestamp(options.getSts())
+                  .withUseSenderMessageId(options.getSmi())
+                  .withAdvanceTimeoutInMillis(options.getTimeout()));
 
     PCollection<String> next = input.apply(ParDo.of(new DoFn<SolaceTextRecord, String>() {
       @ProcessElement

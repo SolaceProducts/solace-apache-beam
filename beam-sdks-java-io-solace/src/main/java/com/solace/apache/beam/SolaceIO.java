@@ -6,6 +6,7 @@ import com.google.auto.value.AutoValue;
 
 import com.solacesystems.jcsmp.BytesXMLMessage;
 
+import com.solacesystems.jcsmp.JCSMPProperties;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -16,7 +17,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import java.io.Serializable;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 import javax.annotation.Nullable;
 
@@ -26,152 +30,38 @@ public class SolaceIO {
   //private static final Logger LOG = LoggerFactory.getLogger(SolaceIO.class);
 
   /**
-   * Read Solace message as a STRING.
+   * Read Solace message, the user must set the message mapper and coder.
    */
-  public static Read<String> readAsString() {
-    return new AutoValue_SolaceIO_Read.Builder<String>()
-        .setMaxReadTime(null).setMaxNumRecords(Long.MAX_VALUE)
-        .setCoder(StringUtf8Coder.of()).setMessageMapper(new StringMessageMapper()).build();
+  public static <T> Read<T> read(JCSMPProperties jcsmpProperties, List<String> queues, Coder<T> coder,
+                                 InboundMessageMapper<T> inboundMessageMapper) {
+    return new AutoValue_SolaceIO_Read.Builder<T>()
+            .setJcsmpProperties(jcsmpProperties)
+            .setQueues(queues)
+            .setCoder(coder)
+            .setInboundMessageMapper(inboundMessageMapper)
+            .setAdvanceTimeoutInMillis(500)
+            .setMaxNumRecords(Long.MAX_VALUE)
+            .setUseSenderMessageId(false)
+            .setUseSenderTimestamp(false)
+            .build();
   }
 
   /**
-   * Read Solace message, the user must set the message maper and coder.
+   * Read Solace message as a STRING.
    */
-  public static <T> Read<T> readMessage() {
-    return new AutoValue_SolaceIO_Read.Builder<T>().setMaxNumRecords(Long.MAX_VALUE).build();
+  public static Read<String> readString(JCSMPProperties jcsmpProperties, List<String> queues) {
+    return SolaceIO.read(jcsmpProperties, queues, StringUtf8Coder.of(), new StringMessageMapper());
   }
 
-  private SolaceIO() {
-  }
+  private SolaceIO() {}
 
   /**
    * An interface used by {@link SolaceIO.Read} for converting each Solace Message
    * into an element of the resulting {@link PCollection}.
    */
   @FunctionalInterface
-  public interface MessageMapper<T> extends Serializable {
-    T mapMessage(BytesXMLMessage message) throws Exception;
-  }
-
-  /** A POJO describing a Solace SMF connection. */
-  @AutoValue
-  public abstract static class ConnectionConfiguration implements Serializable {
-    private static final long serialVersionUID = 42L;
-
-    @Nullable
-    abstract String getHost();
-
-    @Nullable
-    abstract List<String> getQueues();
-
-    @Nullable
-    abstract String getClientName();
-
-    @Nullable
-    abstract String getVpn();
-
-    @Nullable
-    abstract String getUsername();
-
-    @Nullable
-    abstract String getPassword();
-
-    abstract boolean isSenderTimestamp();
-
-    abstract boolean isSenderMessageId();
-
-
-
-    // The timeout in milliseconds while try to receive a messages from Solace
-    // broker
-    abstract int getTimeoutInMillis();
-
-    abstract Builder builder();
-
-    @AutoValue.Builder
-    abstract static class Builder {
-      abstract Builder setHost(String host);
-
-      abstract Builder setQueues(List<String> queues);
-
-      abstract Builder setClientName(String clientName);
-
-      abstract Builder setVpn(String vpn);
-
-      abstract Builder setUsername(String username);
-
-      abstract Builder setPassword(String password);
-
-      abstract Builder setSenderTimestamp(boolean useSenderTimestamp);
-
-      abstract Builder setSenderMessageId(boolean useSenderMessageId);
-
-
-      abstract Builder setTimeoutInMillis(int timeoutInMillis);
-
-
-      abstract ConnectionConfiguration build();
-    }
-
-    /**
-     * Creates a new Solace connection configuration from provided hostname and queue list.
-     */
-    public static ConnectionConfiguration create(String host, List<String> queues) {
-      checkArgument(host != null, "host can not be null");
-      checkArgument(queues != null && queues.size() > 0, "queues can not be null or empty");
-
-      return new AutoValue_SolaceIO_ConnectionConfiguration.Builder()
-          .setHost(host)
-          .setQueues(queues)
-          .setSenderTimestamp(false)
-          .setSenderMessageId(false)
-          .setTimeoutInMillis(500)
-          .build();
-    }
-
-    /**
-     * Set the Solace connection configuration messaging VPN.
-     */
-    public ConnectionConfiguration withVpn(String vpn) {
-      return builder().setVpn(vpn).build();
-    }
-
-    /**
-     * Set the Solace connection configuration username and VPN.
-     */
-    public ConnectionConfiguration withUsername(String username) {
-      ConnectionConfiguration.Builder bldr = builder();
-      String[] args = username.split("@");
-      if (args.length == 2) {
-        bldr = bldr.setVpn(args[1]);
-      } else {
-        bldr = bldr.setVpn("default");
-      }
-      return bldr.setUsername(args[0]).build();
-    }
-
-    public ConnectionConfiguration withPassword(String password) {
-      return builder().setPassword(password).build();
-    }
-
-    public ConnectionConfiguration withSenderTimestamp(boolean useSenderTimestamp) {
-      return builder().setSenderTimestamp(useSenderTimestamp).build();
-    }
-
-    public ConnectionConfiguration withSenderMessageId(boolean useSenderMessageId) {
-      return builder().setSenderMessageId(useSenderMessageId).build();
-    }
-
-    public ConnectionConfiguration withTimeout(int timeoutInMillis) {
-      return builder().setTimeoutInMillis(timeoutInMillis).build();
-    }
-
-    private void populateDisplayData(DisplayData.Builder builder) {
-      builder.add(DisplayData.item("host", getHost()));
-      builder.add(DisplayData.item("vpn", getVpn()));
-      builder.addIfNotNull(DisplayData.item("clientName", getClientName()));
-      builder.addIfNotNull(DisplayData.item("username", getUsername()));
-    }
+  public interface InboundMessageMapper<T> extends Serializable {
+    T map(BytesXMLMessage message) throws Exception;
   }
 
   /**
@@ -181,40 +71,74 @@ public class SolaceIO {
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
     private static final long serialVersionUID = 42L;
 
-    @Nullable
-    abstract ConnectionConfiguration connectionConfiguration();
+    abstract Builder<T> builder();
+
+    abstract JCSMPProperties jcsmpProperties();
+
+    abstract List<String> queues();
+
+    abstract boolean useSenderTimestamp();
+
+    abstract boolean useSenderMessageId();
+
+    // The timeout in milliseconds while try to receive a messages from Solace broker
+    abstract int advanceTimeoutInMillis();
 
     abstract long maxNumRecords();
 
     @Nullable
     abstract Duration maxReadTime();
 
-    @Nullable
-    abstract MessageMapper<T> messageMapper();
+    abstract InboundMessageMapper<T> inboundMessageMapper();
 
-    @Nullable
     abstract Coder<T> coder();
-
-    abstract Builder<T> builder();
 
     @AutoValue.Builder
     abstract static class Builder<T> {
-      abstract Builder<T> setConnectionConfiguration(ConnectionConfiguration config);
+      abstract Builder<T> setJcsmpProperties(JCSMPProperties jcsmpProperties);
+
+      abstract Builder<T> setQueues(List<String> queues);
+
+      abstract Builder<T> setUseSenderTimestamp(boolean useSenderTimestamp);
+
+      abstract Builder<T> setUseSenderMessageId(boolean useSenderMessageId);
+
+
+      abstract Builder<T> setAdvanceTimeoutInMillis(int timeoutInMillis);
 
       abstract Builder<T> setMaxNumRecords(long maxNumRecords);
 
       abstract Builder<T> setMaxReadTime(Duration maxReadTime);
 
-      abstract Builder<T> setMessageMapper(MessageMapper<T> mesageMapper);
+      abstract Builder<T> setInboundMessageMapper(InboundMessageMapper<T> inboundMessageMapper);
 
       abstract Builder<T> setCoder(Coder<T> coder);
 
       abstract Read<T> build();
     }
 
-    public Read<T> withConnectionConfiguration(ConnectionConfiguration configuration) {
-      checkArgument(configuration != null, "configuration can not be null");
-      return builder().setConnectionConfiguration(configuration).build();
+    public Read<T> withJcsmpProperties(JCSMPProperties jcsmpProperties) {
+      checkArgument(jcsmpProperties != null, "jcsmpProperties can not be null");
+      String host = jcsmpProperties.getStringProperty(JCSMPProperties.HOST);
+      checkArgument(host != null && !host.isEmpty(), String.format("jcsmpProperties must specify property: %s", JCSMPProperties.HOST));
+      return builder().setJcsmpProperties(jcsmpProperties).build();
+    }
+
+    public Read<T> withQueues(List<String> queues) {
+      checkArgument(queues != null && queues.size() > 0, "queues can not be null or empty");
+      return builder().setQueues(queues).build();
+    }
+
+    public Read<T> withUseSenderTimestamp(boolean useSenderTimestamp) {
+      return builder().setUseSenderTimestamp(useSenderTimestamp).build();
+    }
+
+    public Read<T> withUseSenderMessageId(boolean useSenderMessageId) {
+      return builder().setUseSenderMessageId(useSenderMessageId).build();
+    }
+
+    public Read<T> withAdvanceTimeoutInMillis(int advanceTimeoutInMillis) {
+      return builder().setAdvanceTimeoutInMillis(advanceTimeoutInMillis).build();
     }
 
     /**
@@ -235,9 +159,9 @@ public class SolaceIO {
       return builder().setMaxReadTime(maxReadTime).build();
     }
 
-    public Read<T> withMessageMapper(MessageMapper<T> messageMapper) {
-      checkArgument(messageMapper != null, "messageMapper can not be null");
-      return builder().setMessageMapper(messageMapper).build();
+    public Read<T> withInboundMessageMapper(InboundMessageMapper<T> inboundMessageMapper) {
+      checkArgument(inboundMessageMapper != null, "inboundMessageMapper can not be null");
+      return builder().setInboundMessageMapper(inboundMessageMapper).build();
     }
 
     public Read<T> withCoder(Coder<T> coder) {
@@ -247,9 +171,16 @@ public class SolaceIO {
 
     @Override
     public PCollection<T> expand(PBegin input) {
-      checkArgument(connectionConfiguration() != null, "withConnectionConfiguration() is required");
-      checkArgument(messageMapper() != null, "withMessageMapper() is required");
-      checkArgument(coder() != null, "withCoder() is required");
+      checkArgument(jcsmpProperties() != null, "jcsmpProperties cannot be null");
+      for (String propertyName : new String[]{JCSMPProperties.HOST, JCSMPProperties.USERNAME, JCSMPProperties.PASSWORD,
+              JCSMPProperties.VPN_NAME}) {
+        checkArgument(jcsmpProperties().getStringProperty(propertyName) != null &&
+                        !jcsmpProperties().getStringProperty(propertyName).isEmpty(),
+                String.format("jcsmpProperties property %s cannot be null", propertyName));
+      }
+      checkArgument(queues() != null && !queues().isEmpty(), "queues cannot be null or empty");
+      checkArgument(inboundMessageMapper() != null, "inboundMessageMapper cannot be null");
+      checkArgument(coder() != null, "coder cannot be null");
 
       org.apache.beam.sdk.io.Read.Unbounded<T> unbounded = org.apache.beam.sdk.io.Read
           .from(new UnboundedSolaceSource<T>(this));
@@ -266,11 +197,31 @@ public class SolaceIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      connectionConfiguration().populateDisplayData(builder);
-      if (maxNumRecords() != Long.MAX_VALUE) {
-        builder.add(DisplayData.item("maxNumRecords", maxNumRecords()));
-      }
+      builder.add(DisplayData.item("queues", String.join("\n", queues())));
+      builder.add(DisplayData.item("useSenderTimestamp", useSenderTimestamp()));
+      builder.add(DisplayData.item("useSenderMessageId", useSenderMessageId()));
+      builder.add(DisplayData.item("advanceTimeoutInMillis", advanceTimeoutInMillis()));
+      builder.addIfNotDefault(DisplayData.item("maxNumRecords", maxNumRecords()), Long.MAX_VALUE);
       builder.addIfNotNull(DisplayData.item("maxReadTime", maxReadTime()));
+
+      for (String propertyName : jcsmpProperties().propertyNames()) {
+        Set<String> hiddenProperties = new HashSet<>();
+        hiddenProperties.add(JCSMPProperties.PASSWORD);
+        hiddenProperties.add(JCSMPProperties.SSL_KEY_STORE_PASSWORD);
+        hiddenProperties.add(JCSMPProperties.SSL_PRIVATE_KEY_PASSWORD);
+        hiddenProperties.add(JCSMPProperties.SSL_TRUST_STORE_PASSWORD);
+        if (hiddenProperties.contains(propertyName) || propertyName.toLowerCase().contains("password")) continue;
+
+        Object propertyValue = jcsmpProperties().getProperty(propertyName);
+        if (propertyValue == null) continue;
+
+        Optional<DisplayData.Type> type = Optional.ofNullable(DisplayData.inferType(propertyValue));
+        if (!type.isPresent()) {
+          type = Optional.of(DisplayData.Type.STRING);
+          propertyValue = propertyValue.toString();
+        }
+        builder.addIfNotNull(DisplayData.item("jcsmpProperties." + propertyName, type.get(), propertyValue));
+      }
     }
   }
 
