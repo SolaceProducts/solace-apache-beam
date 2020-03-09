@@ -31,7 +31,7 @@
 
   <properties>
     <repoName>SolaceProducts</repoName>
-    <beam.version>2.16.0</beam.version>
+    <beam.version>2.18.0</beam.version>
   </properties>
 
   <licenses>

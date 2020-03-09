@@ -28,7 +28,7 @@
 	<artifactId>solace-apache-beam-samples</artifactId>
 
 	<properties>
-		<beam.version>2.16.0</beam.version>
+		<beam.version>2.18.0</beam.version>
 		<solace-beam.version>1.0.0-SNAPSHOT</solace-beam.version>
 
 		<bigquery.version>v2-rev374-1.23.0</bigquery.version>
