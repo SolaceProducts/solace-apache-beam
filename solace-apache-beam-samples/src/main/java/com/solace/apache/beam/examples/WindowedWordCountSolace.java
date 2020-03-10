@@ -64,7 +64,7 @@ import java.util.List;
  * <pre>{@code
  * --runner=YOUR_SELECTED_RUNNER
  * }</pre>
- *
+ * <p>
  * See examples/java/README.md for instructions about how to configure different runners.
  *
  * <p>To execute this pipeline locally, specify a local output file (if using the {@code
@@ -85,110 +85,120 @@ import java.util.List;
  */
 public class WindowedWordCountSolace {
 
-    public interface Options
-            extends WordCount.WordCountOptions {
-              @Description("IP and port of the client appliance. (e.g. -cip=192.168.160.101)")
-              String getCip();
-              void setCip(String value);
+	public interface Options
+			extends WordCount.WordCountOptions {
+		@Description("IP and port of the client appliance. (e.g. -cip=192.168.160.101)")
+		String getCip();
 
-              @Description("Client username")
-              String getCu();
-              void setCu(String value);
+		void setCip(String value);
 
-             @Description("VPN name")
-             String getVpn();
-             void setVpn(String value);
+		@Description("Client username")
+		String getCu();
 
-              @Description("Client password (default '')")
-              @Default.String("")
-              String getCp();
-              void setCp(String value);
+		void setCu(String value);
 
-              @Description("List of queues for subscribing")
-              String getSql();
-              void setSql(String value);
+		@Description("VPN name")
+		String getVpn();
 
-              @Description("Enable reading sender timestamp to deturmine freashness of data")
-              @Default.Boolean(false)
-              boolean getSts();
-              void setSts(boolean value);
+		void setVpn(String value);
 
-              @Description("Enable reading sender MessageId to deturmine duplication of data")
-              @Default.Boolean(false)
-              boolean getSmi();
-              void setSmi(boolean value);
+		@Description("Client password (default '')")
+		@Default.String("")
+		String getCp();
 
-              @Description("The timeout in milliseconds while try to receive a messages from Solace broker")
-              @Default.Integer(100)
-              int getTimeout();
-              void setTimeout(int timeoutInMillis);;
-            }
+		void setCp(String value);
 
-  static void runWindowedWordCount(Options options) throws Exception {
+		@Description("List of queues for subscribing")
+		String getSql();
 
-    List<String> queues =Arrays.asList(options.getSql().split(","));
+		void setSql(String value);
 
-    Pipeline pipeline = Pipeline.create(options);
+		@Description("Enable reading sender timestamp to deturmine freashness of data")
+		@Default.Boolean(false)
+		boolean getSts();
 
-      JCSMPProperties jcsmpProperties = new JCSMPProperties();
-      jcsmpProperties.setProperty(JCSMPProperties.HOST, options.getCip());
-      jcsmpProperties.setProperty(JCSMPProperties.VPN_NAME, options.getVpn());
-      jcsmpProperties.setProperty(JCSMPProperties.USERNAME, options.getCu());
-      jcsmpProperties.setProperty(JCSMPProperties.PASSWORD, options.getCp());
+		void setSts(boolean value);
 
-    /*
-     * Concept #1: the Beam SDK lets us run the same pipeline with either a bounded or
-     * unbounded input source.
-     */
-    PCollection<String> input =
-        pipeline
-            /* Read from the Solace JMS Server. */
-            .apply(SolaceIO.readString(jcsmpProperties, queues)
-                    .withUseSenderTimestamp(options.getSts())
-                    .withUseSenderMessageId(options.getSmi())
-                    .withAdvanceTimeoutInMillis(options.getTimeout()));
+		@Description("Enable reading sender MessageId to deturmine duplication of data")
+		@Default.Boolean(false)
+		boolean getSmi();
 
-    /*
-     * Concept #3: Window into fixed windows. The fixed window size for this example defaults to 1
-     * minute (you can change this with a command-line option). See the documentation for more
-     * information on how fixed windows work, and for information on the other types of windowing
-     * available (e.g., sliding windows).
-     */
-    PCollection<String> windowedWords =
-        input.apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(10))));
+		void setSmi(boolean value);
 
-    /*
-     * Concept #4: Re-use our existing CountWords transform that does not have knowledge of
-     * windows over a PCollection containing windowed values.
-     */
-    PCollection<KV<String, Long>> wordCounts = windowedWords.apply(new WordCount.CountWords());
+		@Description("The timeout in milliseconds while try to receive a messages from Solace broker")
+		@Default.Integer(100)
+		int getTimeout();
 
-    /*
-     * Concept #5: Format the results and write to a sharded file partitioned by window, using a
-     * simple ParDo operation. Because there may be failures followed by retries, the
-     * writes must be idempotent, but the details of writing to files is elided here.
-     */
-    final String output = options.getOutput();
-    wordCounts
-      .apply(MapElements.via(new WordCount.FormatAsTextFn()))
-      .apply(new WriteOneFilePerWindow(output, 1));
+		void setTimeout(int timeoutInMillis);
 
-    PipelineResult result = pipeline.run();
-    try {
-      result.waitUntilFinish();
-    } catch (Exception exc) {
-      result.cancel();
-    }
-  }
+		;
+	}
 
-  public static void main(String[] args) throws Exception {
+	static void runWindowedWordCount(Options options) throws Exception {
+
+		List<String> queues = Arrays.asList(options.getSql().split(","));
+
+		Pipeline pipeline = Pipeline.create(options);
+
+		JCSMPProperties jcsmpProperties = new JCSMPProperties();
+		jcsmpProperties.setProperty(JCSMPProperties.HOST, options.getCip());
+		jcsmpProperties.setProperty(JCSMPProperties.VPN_NAME, options.getVpn());
+		jcsmpProperties.setProperty(JCSMPProperties.USERNAME, options.getCu());
+		jcsmpProperties.setProperty(JCSMPProperties.PASSWORD, options.getCp());
+
+		/*
+		 * Concept #1: the Beam SDK lets us run the same pipeline with either a bounded or
+		 * unbounded input source.
+		 */
+		PCollection<String> input =
+				pipeline
+						/* Read from the Solace JMS Server. */
+						.apply(SolaceIO.readString(jcsmpProperties, queues)
+								.withUseSenderTimestamp(options.getSts())
+								.withUseSenderMessageId(options.getSmi())
+								.withAdvanceTimeoutInMillis(options.getTimeout()));
+
+		/*
+		 * Concept #3: Window into fixed windows. The fixed window size for this example defaults to 1
+		 * minute (you can change this with a command-line option). See the documentation for more
+		 * information on how fixed windows work, and for information on the other types of windowing
+		 * available (e.g., sliding windows).
+		 */
+		PCollection<String> windowedWords =
+				input.apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(10))));
+
+		/*
+		 * Concept #4: Re-use our existing CountWords transform that does not have knowledge of
+		 * windows over a PCollection containing windowed values.
+		 */
+		PCollection<KV<String, Long>> wordCounts = windowedWords.apply(new WordCount.CountWords());
+
+		/*
+		 * Concept #5: Format the results and write to a sharded file partitioned by window, using a
+		 * simple ParDo operation. Because there may be failures followed by retries, the
+		 * writes must be idempotent, but the details of writing to files is elided here.
+		 */
+		final String output = options.getOutput();
+		wordCounts
+				.apply(MapElements.via(new WordCount.FormatAsTextFn()))
+				.apply(new WriteOneFilePerWindow(output, 1));
+
+		PipelineResult result = pipeline.run();
+		try {
+			result.waitUntilFinish();
+		} catch (Exception exc) {
+			result.cancel();
+		}
+	}
+
+	public static void main(String[] args) throws Exception {
 //    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
-      Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+		Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
 
-    try {
-      runWindowedWordCount(options);
-    } catch (Exception e){
-      e.printStackTrace();
-    }
-  }
+		try {
+			runWindowedWordCount(options);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
 }

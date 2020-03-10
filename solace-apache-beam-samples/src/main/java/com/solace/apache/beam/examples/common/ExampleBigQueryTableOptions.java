@@ -29,28 +29,30 @@ import org.apache.beam.sdk.options.PipelineOptions;
  * the project being used to run the example.
  */
 public interface ExampleBigQueryTableOptions extends GcpOptions {
-  @Description("BigQuery dataset name")
-  @Default.String("beam_examples")
-  String getBigQueryDataset();
+	@Description("BigQuery dataset name")
+	@Default.String("beam_examples")
+	String getBigQueryDataset();
 
-  void setBigQueryDataset(String dataset);
+	void setBigQueryDataset(String dataset);
 
-  @Description("BigQuery table name")
-  @Default.InstanceFactory(BigQueryTableFactory.class)
-  String getBigQueryTable();
+	@Description("BigQuery table name")
+	@Default.InstanceFactory(BigQueryTableFactory.class)
+	String getBigQueryTable();
 
-  void setBigQueryTable(String table);
+	void setBigQueryTable(String table);
 
-  @Description("BigQuery table schema")
-  TableSchema getBigQuerySchema();
+	@Description("BigQuery table schema")
+	TableSchema getBigQuerySchema();
 
-  void setBigQuerySchema(TableSchema schema);
+	void setBigQuerySchema(TableSchema schema);
 
-  /** Returns the job name as the default BigQuery table name. */
-  class BigQueryTableFactory implements DefaultValueFactory<String> {
-    @Override
-    public String create(PipelineOptions options) {
-      return options.getJobName().replace('-', '_');
-    }
-  }
+	/**
+	 * Returns the job name as the default BigQuery table name.
+	 */
+	class BigQueryTableFactory implements DefaultValueFactory<String> {
+		@Override
+		public String create(PipelineOptions options) {
+			return options.getJobName().replace('-', '_');
+		}
+	}
 }
