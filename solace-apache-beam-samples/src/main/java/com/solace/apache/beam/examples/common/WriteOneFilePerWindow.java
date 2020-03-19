@@ -87,8 +87,8 @@ public class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone
 		public String filenamePrefixForWindow(IntervalWindow window) {
 			String prefix =
 					baseFilename.isDirectory() ? "" : firstNonNull(baseFilename.getFilename(), "");
-			return String.format(
-					"%s-%s-%s", prefix, FORMATTER.print(window.start()), FORMATTER.print(window.end()));
+			return String.format("%s-%s-%s", prefix, FORMATTER.print(window.start()), FORMATTER.print(window.end()))
+					.replaceAll(":", ".");
 		}
 
 		@Override

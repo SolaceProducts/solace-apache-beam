@@ -223,8 +223,10 @@ public class SolaceIO {
 		private void validateConfig() {
 			// Validate jcsmpProperties
 			checkArgument(jcsmpProperties() != null, "jcsmpProperties cannot be null");
-			for (String propertyName : new String[]{JCSMPProperties.HOST, JCSMPProperties.USERNAME, JCSMPProperties.PASSWORD,
-					JCSMPProperties.VPN_NAME}) {
+			checkArgument(jcsmpProperties().getStringProperty(JCSMPProperties.CLIENT_NAME) == null,
+					String.format("jcmspProperties property %s must be null", JCSMPProperties.CLIENT_NAME));
+			for (String propertyName : new String[]{
+					JCSMPProperties.HOST, JCSMPProperties.USERNAME, JCSMPProperties.PASSWORD, JCSMPProperties.VPN_NAME}) {
 				checkArgument(jcsmpProperties().getStringProperty(propertyName) != null &&
 								!jcsmpProperties().getStringProperty(propertyName).isEmpty(),
 						String.format("jcsmpProperties property %s cannot be null", propertyName));
