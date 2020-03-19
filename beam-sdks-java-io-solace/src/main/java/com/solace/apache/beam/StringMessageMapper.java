@@ -1,6 +1,10 @@
 package com.solace.apache.beam;
 
+import com.solacesystems.jcsmp.BytesMessage;
 import com.solacesystems.jcsmp.BytesXMLMessage;
+import com.solacesystems.jcsmp.MapMessage;
+import com.solacesystems.jcsmp.StreamMessage;
+import com.solacesystems.jcsmp.TextMessage;
 
 import java.nio.charset.StandardCharsets;
 
@@ -9,6 +13,18 @@ class StringMessageMapper implements SolaceIO.InboundMessageMapper<String> {
 
 	@Override
 	public String map(BytesXMLMessage message) {
-		return new String(message.getBytes(), StandardCharsets.UTF_8);
+		if (message instanceof TextMessage) {
+			return ((TextMessage) message).getText();
+		} else if (message instanceof BytesMessage) {
+			return new String(((BytesMessage) message).getData(), StandardCharsets.UTF_8);
+		} else if (message instanceof StreamMessage) {
+			return ((StreamMessage) message).getStream().toString();
+		} else if (message instanceof MapMessage) {
+			return ((MapMessage) message).getMap().toString();
+		} else if (message.getAttachmentContentLength() > 0) {
+			return new String(message.getAttachmentByteBuffer().array(), StandardCharsets.UTF_8);
+		} else {
+			return new String(message.getBytes(), StandardCharsets.UTF_8);
+		}
 	}
 }

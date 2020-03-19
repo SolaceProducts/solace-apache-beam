@@ -174,6 +174,21 @@ public class SolaceIOIT {
 	}
 
 	@Test
+	public void testReadString() throws Exception {
+		SolaceIO.Read<String> read = SolaceIO.readString(testJcsmpProperties, testQueues)
+				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
+
+		PCollection<String> messagePayloads = testPipeline.apply(read);
+		PCollection<Long> counts = messagePayloads.apply(new CountMessages());
+
+		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
+		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
+
+		testPipeline.run();
+		sempOps.waitForQueuesEmpty(testJcsmpProperties, testQueues, 30);
+	}
+
+	@Test
 	public void testBasic() throws Exception {
 		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,
 				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
