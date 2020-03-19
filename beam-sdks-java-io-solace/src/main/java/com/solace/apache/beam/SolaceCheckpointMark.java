@@ -55,16 +55,10 @@ class SolaceCheckpointMark implements UnboundedSource.CheckpointMark, Serializab
 						msg.message.ackMessage();
 
 						// advance watermark
-						reader.watermark.updateAndGet(min -> {
-							if (msg.time.getMillis() > min) {
-								return msg.time.getMillis();
-							} else {
-								return min;
-							}
-						});
+						reader.watermark.updateAndGet(min -> Math.max(msg.time.getMillis(), min));
 					}
 				}
-				reader.readerStats.incrCheckpointCompleteMessages(new Long(ackListSize));
+				reader.readerStats.incrCheckpointCompleteMessages((long) ackListSize);
 			} catch (Exception e) {
 				LOG.error(String.format("Got exception while acknowledging %s %s: %s",
 						this.getClass().getSimpleName(), this.id, e.toString()), e);

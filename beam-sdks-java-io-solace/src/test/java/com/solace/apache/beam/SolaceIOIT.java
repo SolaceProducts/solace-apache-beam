@@ -10,10 +10,8 @@ import com.solacesystems.jcsmp.JCSMPException;
 import com.solacesystems.jcsmp.JCSMPFactory;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import com.solacesystems.jcsmp.JCSMPSession;
-import com.solacesystems.jcsmp.JCSMPStreamingPublishEventHandler;
 import com.solacesystems.jcsmp.Queue;
 import com.solacesystems.jcsmp.XMLMessageProducer;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
@@ -26,7 +24,6 @@ import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -44,7 +41,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.Executors;
@@ -55,25 +51,17 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertNotNull;
 
 @RunWith(JUnit4.class)
-public class SolaceIOIT {
+public class SolaceIOIT extends ITBase {
 	@Rule public final transient TestPipeline testPipeline = TestPipeline.create();
 	@Rule public ExpectedException thrown = ExpectedException.none();
 
 	private List<String> testQueues;
 	private List<String> expectedMsgPayloads;
 	private EndpointProperties endpointProperties;
-	private JCSMPSession jcsmpSession;
-	private XMLMessageProducer producer;
-	private SempOperationUtils sempOps;
 
 	private static final Logger LOG = LoggerFactory.getLogger(SolaceIOIT.class);
 	private static final int NUM_MSGS_PER_QUEUE = 10;
 	private static final ScheduledExecutorService SCHEDULER = Executors.newScheduledThreadPool(1);
-
-	private static JCSMPProperties testJcsmpProperties;
-	private static String mgmtHost;
-	private static String mgmtUsername;
-	private static String mgmtPassword;
 
 	private static class ExtractPayloadFn extends DoFn<SolaceTestRecord, String> {
 		private static final Logger LOG = LoggerFactory.getLogger(ExtractPayloadFn.class);
@@ -102,31 +90,6 @@ public class SolaceIOIT {
 		}
 	}
 
-	@BeforeClass
-	public static void globalSetup() {
-		PipelineOptionsFactory.register(SolaceIOTestPipelineOptions.class);
-		SolaceIOTestPipelineOptions options = TestPipeline.testingPipelineOptions().as(SolaceIOTestPipelineOptions.class);
-
-		String solaceHostName = Optional.ofNullable(System.getenv("SOLACE_HOST")).orElse(options.getSolaceHostName());
-
-		testJcsmpProperties = new JCSMPProperties();
-		testJcsmpProperties.setProperty(JCSMPProperties.VPN_NAME,
-				Optional.ofNullable(System.getenv("SOLACE_VPN_NAME")).orElse(options.getSolaceVpnName()));
-		testJcsmpProperties.setProperty(JCSMPProperties.HOST, String.format("tcp://%s:%s", solaceHostName,
-				Optional.ofNullable(System.getenv("SOLACE_SMF_PORT")).orElse(String.valueOf(options.getSolaceSmfPort()))));
-		testJcsmpProperties.setProperty(JCSMPProperties.USERNAME,
-				Optional.ofNullable(System.getenv("SOLACE_USERNAME")).orElse(options.getSolaceUsername()));
-		testJcsmpProperties.setProperty(JCSMPProperties.PASSWORD,
-				Optional.ofNullable(System.getenv("SOLACE_PASSWORD")).orElse(options.getSolacePassword()));
-
-		testJcsmpProperties.setBooleanProperty(JCSMPProperties.GENERATE_SEQUENCE_NUMBERS, true);
-
-		mgmtHost = String.format("https://%s:%s", solaceHostName,
-				Optional.ofNullable(System.getenv("SOLACE_MGMT_PORT")).orElse(String.valueOf(options.getSolaceMgmtPort())));
-		mgmtUsername = Optional.ofNullable(System.getenv("SOLACE_MGMT_USERNAME")).orElse(options.getSolaceMgmtUsername());
-		mgmtPassword = Optional.ofNullable(System.getenv("SOLACE_MGMT_PASSWORD")).orElse(options.getSolaceMgmtPassword());
-	}
-
 	@AfterClass
 	public static void globalTeardown() {
 		if (SCHEDULER.isTerminated()) {
@@ -138,38 +101,17 @@ public class SolaceIOIT {
 	public void setup() throws Exception {
 		testQueues = new ArrayList<>();
 		expectedMsgPayloads = new ArrayList<>();
-
-		LOG.info(String.format("Creating JCSMP Session for %s", testJcsmpProperties.getStringProperty(JCSMPProperties.HOST)));
-		jcsmpSession = JCSMPFactory.onlyInstance().createSession(testJcsmpProperties);
-
-		LOG.info(String.format("Creating XMLMessageProducer for %s", testJcsmpProperties.getStringProperty(JCSMPProperties.HOST)));
-		producer = jcsmpSession.getMessageProducer(createPublisherEventHandler());
-
 		provisionQueue();
-
-		sempOps = new SempOperationUtils(mgmtHost, mgmtUsername, mgmtPassword, jcsmpSession, false, true);
-		sempOps.start();
 	}
 
 	@After
 	public void teardown() throws Exception {
 		if (jcsmpSession != null && !jcsmpSession.isClosed()) {
-			if (sempOps != null) {
-				sempOps.close();
-			}
-
-			if (producer != null) {
-				producer.close();
-			}
-
 			for (String queueName : testQueues) {
 				LOG.info(String.format("Deprovisioning Queue %s", queueName));
 				Queue queue = JCSMPFactory.onlyInstance().createQueue(queueName);
 				jcsmpSession.deprovision(queue, JCSMPSession.FLAG_IGNORE_DOES_NOT_EXIST);
 			}
-
-			LOG.info("Closing JCSMP Session");
-			jcsmpSession.closeSession();
 		}
 	}
 
@@ -739,19 +681,5 @@ public class SolaceIOIT {
 		BytesXMLMessage msg = JCSMPFactory.onlyInstance().createMessage(BytesXMLMessage.class);
 		msg.writeAttachment(payload.getBytes(StandardCharsets.UTF_8));
 		return msg;
-	}
-
-	private static JCSMPStreamingPublishEventHandler createPublisherEventHandler() {
-		return new JCSMPStreamingPublishEventHandler() {
-			@Override
-			public void responseReceived(String messageID) {
-				LOG.debug("Producer received response for msg: " + messageID);
-			}
-
-			@Override
-			public void handleError(String messageID, JCSMPException e, long timestamp) {
-				LOG.warn("Producer received error for msg: " + messageID + " - " + timestamp, e);
-			}
-		};
 	}
 }
