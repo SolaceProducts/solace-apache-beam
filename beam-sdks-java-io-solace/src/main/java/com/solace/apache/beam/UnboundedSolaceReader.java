@@ -2,7 +2,6 @@ package com.solace.apache.beam;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.solacesystems.jcsmp.BytesXMLMessage;
-import com.solacesystems.jcsmp.CapabilityType;
 import com.solacesystems.jcsmp.ConsumerFlowProperties;
 import com.solacesystems.jcsmp.EndpointProperties;
 import com.solacesystems.jcsmp.FlowReceiver;
@@ -10,36 +9,16 @@ import com.solacesystems.jcsmp.JCSMPException;
 import com.solacesystems.jcsmp.JCSMPFactory;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import com.solacesystems.jcsmp.JCSMPSession;
-import com.solacesystems.jcsmp.JCSMPStreamingPublishEventHandler;
 import com.solacesystems.jcsmp.Queue;
-import com.solacesystems.jcsmp.Requestor;
-import com.solacesystems.jcsmp.Topic;
-import com.solacesystems.jcsmp.XMLMessageConsumer;
-import com.solacesystems.jcsmp.XMLMessageListener;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Longs;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.w3c.dom.Document;
-import org.w3c.dom.Node;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.transform.OutputKeys;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerException;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
-import javax.xml.xpath.XPath;
-import javax.xml.xpath.XPathConstants;
-import javax.xml.xpath.XPathFactory;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.Serializable;
-import java.io.StringWriter;
 import java.util.LinkedList;
 import java.util.NoSuchElementException;
 import java.util.concurrent.BlockingQueue;
@@ -62,10 +41,10 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 	private final UnboundedSolaceSource<T> source;
 	private JCSMPSession session;
 	protected FlowReceiver flowReceiver;
+	private MsgBusSempUtil msgBusSempUtil;
 	private boolean useSenderTimestamp;
 	private boolean useSenderMessageId;
 	private String clientName;
-	private Topic sempShowTopic;
 	private byte[] currentMessageId;
 	private T current;
 	private Instant currentTimestamp;
@@ -86,19 +65,6 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 	 * at once.
 	 */
 	private java.util.Queue<Message> wait4cpQueue = new LinkedList<>();
-
-	public class PrintingPubCallback implements JCSMPStreamingPublishEventHandler {
-		public void handleError(String messageId, JCSMPException cause, long timestamp) {
-			LOG.error("Error occurred for Solace queue depth request message: " + messageId);
-			cause.printStackTrace();
-		}
-
-		// This method is only invoked for persistent and non-persistent
-		// messages.
-		public void responseReceived(String messageId) {
-			LOG.error("Unexpected response to Solace queue depth request message: " + messageId);
-		}
-	}
 
 	private static class ActivityMonitor<T> extends Thread {
 		private UnboundedSolaceReader<T> reader;
@@ -142,15 +108,11 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 		try {
 			final JCSMPProperties properties = source.getSpec().jcsmpProperties();
 			session = JCSMPFactory.onlyInstance().createSession(properties);
-			session.getMessageProducer(new PrintingPubCallback());
-			XMLMessageConsumer consumer = session.getMessageConsumer((XMLMessageListener) null);
-			consumer.start();
 			clientName = (String) session.getProperty(JCSMPProperties.CLIENT_NAME);
 			session.connect();
 
-			String routerName = (String) session.getCapability(CapabilityType.PEER_ROUTER_NAME);
-			final String sempShowTopicString = String.format("#SEMP/%s/SHOW", routerName);
-			sempShowTopic = JCSMPFactory.onlyInstance().createTopic(sempShowTopicString);
+			msgBusSempUtil = new MsgBusSempUtil(session);
+			msgBusSempUtil.start();
 
 			// do NOT provision the queue, so "Unknown Queue" exception will be threw if the
 			// queue is not existed already
@@ -258,13 +220,17 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 			if (flowReceiver != null) {
 				flowReceiver.close();
 			}
-			if (session != null) {
-				session.closeSession();
+
+			if (msgBusSempUtil != null) {
+				msgBusSempUtil.close();
 			}
 		} catch (Exception ex) {
 			throw new IOException(ex);
+		} finally {
+			if (session != null && !session.isClosed()) {
+				session.closeSession();
+			}
 		}
-		// TODO: add finally block to close session.
 	}
 
 	/**
@@ -329,45 +295,14 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 		return source;
 	}
 
-	private String queryRouter(String queryString, String searchString) throws Exception {
-		Requestor requestor = session.createRequestor();
-		ByteArrayInputStream input;
-		BytesXMLMessage requestMsg = JCSMPFactory.onlyInstance().createMessage(BytesXMLMessage.class);
-		requestMsg.writeAttachment(queryString.getBytes());
-		BytesXMLMessage replyMsg = requestor.request(requestMsg, 5000, sempShowTopic);
-		byte[] bytes = new byte[replyMsg.getAttachmentContentLength()];
-		replyMsg.readAttachmentBytes(bytes);
-		input = new ByteArrayInputStream(bytes);
-		DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-		DocumentBuilder builder = factory.newDocumentBuilder();
-		Document doc = builder.parse(input);
-		XPath xpath = XPathFactory.newInstance().newXPath();
-		Node node = (Node) xpath.compile(searchString).evaluate(doc, XPathConstants.NODE);
-		if (node == null || node.getTextContent() == null) {
-			throw new NullPointerException(String.format("Failed to evaluate %s in %s", searchString, printDocument(doc)));
-		}
-		return node.getTextContent();
-	}
-
-	public static String printDocument(Document doc) throws TransformerException {
-		TransformerFactory tf = TransformerFactory.newInstance();
-		Transformer transformer = tf.newTransformer();
-		transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "no");
-		transformer.setOutputProperty(OutputKeys.METHOD, "xml");
-		transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
-		StringWriter writer = new StringWriter();
-		transformer.transform(new DOMSource(doc), new StreamResult(writer));
-		return writer.getBuffer().toString();
-	}
-
 	private long queryQueueBytes(String queueName, String vpnName) {
 		LOG.debug("Enter queryQueueBytes() Queue: [{}] VPN: [{}]", queueName, vpnName);
 		long queueBytes = UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
-		String sempShowQueue = "<rpc><show><queue><name>" + queueName + "</name>";
-		sempShowQueue += "<vpn-name>" + vpnName + "</vpn-name></queue></show></rpc>";
+		String sempShowQueue = String.format("<rpc><show><queue><name>%s</name><vpn-name>%s</vpn-name></queue></show></rpc>",
+				queueName, vpnName);
 		String queryString = "/rpc-reply/rpc/show/queue/queues/queue/info/current-spool-usage-in-bytes";
 		try {
-			String queryResults = queryRouter(sempShowQueue, queryString);
+			String queryResults = msgBusSempUtil.queryRouter(sempShowQueue, queryString);
 			queueBytes = Long.parseLong(queryResults);
 		} catch (JCSMPException e) {
 			LOG.error(String.format("Encountered a JCSMPException querying queue depth: %s", e.getMessage()), e);
@@ -402,6 +337,8 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 	@Override
 	protected void finalize() throws Throwable {
 		this.endMonitor.set(true);
-		session.closeSession();
+		if (session != null && !session.isClosed()) {
+			session.closeSession();
+		}
 	}
 }

@@ -116,18 +116,22 @@ public class SolaceIO {
 
 			abstract Builder<T> setCoder(Coder<T> coder);
 
-			abstract Read<T> build();
+			abstract Read<T> autoBuild();
+
+			public Read<T> build() {
+				Read<T> read = autoBuild();
+
+				read.validateConfig();
+
+				return read;
+			}
 		}
 
 		public Read<T> withJcsmpProperties(JCSMPProperties jcsmpProperties) {
-			checkArgument(jcsmpProperties != null, "jcsmpProperties can not be null");
-			String host = jcsmpProperties.getStringProperty(JCSMPProperties.HOST);
-			checkArgument(host != null && !host.isEmpty(), String.format("jcsmpProperties must specify property: %s", JCSMPProperties.HOST));
 			return builder().setJcsmpProperties(jcsmpProperties).build();
 		}
 
 		public Read<T> withQueues(List<String> queues) {
-			checkArgument(queues != null && queues.size() > 0, "queues can not be null or empty");
 			return builder().setQueues(queues).build();
 		}
 
@@ -162,30 +166,19 @@ public class SolaceIO {
 		}
 
 		public Read<T> withInboundMessageMapper(InboundMessageMapper<T> inboundMessageMapper) {
-			checkArgument(inboundMessageMapper != null, "inboundMessageMapper can not be null");
 			return builder().setInboundMessageMapper(inboundMessageMapper).build();
 		}
 
 		public Read<T> withCoder(Coder<T> coder) {
-			checkArgument(coder != null, "coder can not be null");
 			return builder().setCoder(coder).build();
 		}
 
 		@Override
 		public PCollection<T> expand(PBegin input) {
-			checkArgument(jcsmpProperties() != null, "jcsmpProperties cannot be null");
-			for (String propertyName : new String[]{JCSMPProperties.HOST, JCSMPProperties.USERNAME, JCSMPProperties.PASSWORD,
-					JCSMPProperties.VPN_NAME}) {
-				checkArgument(jcsmpProperties().getStringProperty(propertyName) != null &&
-								!jcsmpProperties().getStringProperty(propertyName).isEmpty(),
-						String.format("jcsmpProperties property %s cannot be null", propertyName));
-			}
-			checkArgument(queues() != null && !queues().isEmpty(), "queues cannot be null or empty");
-			checkArgument(inboundMessageMapper() != null, "inboundMessageMapper cannot be null");
-			checkArgument(coder() != null, "coder cannot be null");
+			validateConfig();
 
 			org.apache.beam.sdk.io.Read.Unbounded<T> unbounded = org.apache.beam.sdk.io.Read
-					.from(new UnboundedSolaceSource<T>(this));
+					.from(new UnboundedSolaceSource<>(this));
 
 			PTransform<PBegin, PCollection<T>> transform = unbounded;
 
@@ -224,6 +217,37 @@ public class SolaceIO {
 					propertyValue = propertyValue.toString();
 				}
 				builder.addIfNotNull(DisplayData.item("jcsmpProperties." + propertyName, type.get(), propertyValue));
+			}
+		}
+
+		private void validateConfig() {
+			// Validate jcsmpProperties
+			checkArgument(jcsmpProperties() != null, "jcsmpProperties cannot be null");
+			for (String propertyName : new String[]{JCSMPProperties.HOST, JCSMPProperties.USERNAME, JCSMPProperties.PASSWORD,
+					JCSMPProperties.VPN_NAME}) {
+				checkArgument(jcsmpProperties().getStringProperty(propertyName) != null &&
+								!jcsmpProperties().getStringProperty(propertyName).isEmpty(),
+						String.format("jcsmpProperties property %s cannot be null", propertyName));
+			}
+
+			// Validate queues
+			checkArgument(queues() != null && !queues().isEmpty(), "queues cannot be null or empty");
+
+			// Validate inboundMessageMapper
+			checkArgument(inboundMessageMapper() != null, "inboundMessageMapper cannot be null");
+
+			// Validate coder
+			checkArgument(coder() != null, "coder cannot be null");
+
+			// Validate advanceTimeoutInMillis
+			checkArgument(advanceTimeoutInMillis() > 0, "advanceTimeoutInMillis must be greater than 0");
+
+			// Validate maxNumRecords
+			checkArgument(maxNumRecords() > 0, "maxNumRecords must be greater than 0");
+
+			// Validate maxReadTime
+			if (maxReadTime() != null) {
+				checkArgument(maxReadTime().isLongerThan(Duration.ZERO), "maxReadTime must be greater than 0");
 			}
 		}
 	}
