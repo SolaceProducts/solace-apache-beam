@@ -49,11 +49,11 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 	private T current;
 	private Instant currentTimestamp;
 	private final EndpointProperties endpointProps = new EndpointProperties();
-	public final SolaceReaderStats readerStats;
+	final SolaceReaderStats readerStats;
 	private ConsumerFlowProperties flow_prop = new ConsumerFlowProperties();
-	public AtomicLong watermark = new AtomicLong(0);
-	public AtomicBoolean isActive = new AtomicBoolean(true); // Only set to false after timeout
-	public AtomicBoolean endMonitor = new AtomicBoolean(false);
+	AtomicLong watermark = new AtomicLong(0);
+	private AtomicBoolean isActive = new AtomicBoolean(true); // Only set to false after timeout
+	private AtomicBoolean endMonitor = new AtomicBoolean(false);
 
 	private static final long statsPeriodMs = 120000;
 
