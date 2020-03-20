@@ -2,9 +2,11 @@ package com.solace.apache.beam;
 
 import com.solacesystems.jcsmp.JCSMPProperties;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.joda.time.Duration;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -33,6 +35,11 @@ public class SolaceIOTest {
 	private List<String> testQueues;
 
 	private static final Logger LOG = LoggerFactory.getLogger(SolaceIOTest.class);
+
+	@BeforeClass
+	public static void globalSetup() {
+		PipelineOptionsFactory.register(SolaceIOTestPipelineOptions.class);
+	}
 
 	@Before
 	public void setup() {

@@ -7,6 +7,7 @@ import com.solacesystems.jcsmp.JCSMPSession;
 import com.solacesystems.jcsmp.JCSMPStreamingPublishEventHandler;
 import com.solacesystems.jcsmp.XMLMessageProducer;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.junit.After;
 import org.junit.Before;
@@ -30,8 +31,10 @@ public abstract class ITBase {
 
 	@BeforeClass
 	public static void fetchPubSubConnectionDetails() {
+		LOG.info("Initializing PubSub+ broker credentials");
 		PipelineOptionsFactory.register(SolaceIOTestPipelineOptions.class);
 		SolaceIOTestPipelineOptions options = TestPipeline.testingPipelineOptions().as(SolaceIOTestPipelineOptions.class);
+		PipelineOptionsValidator.validate(SolaceIOTestPipelineOptions.class, options);
 
 		String solaceHostName = Optional.ofNullable(System.getenv("SOLACE_HOST")).orElse(options.getSolaceHostName());
 
