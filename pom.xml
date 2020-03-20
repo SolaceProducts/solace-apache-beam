@@ -31,6 +31,11 @@
 
   <properties>
     <repoName>SolaceProducts</repoName>
+
+    <!--
+    Upgrade to 2.19.0 or higher once this issue is fixed:
+    https://issues.apache.org/jira/browse/BEAM-9471
+    -->
     <beam.version>2.18.0</beam.version>
   </properties>
 
