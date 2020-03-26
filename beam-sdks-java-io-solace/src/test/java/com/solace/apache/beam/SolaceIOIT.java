@@ -6,10 +6,12 @@ import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.ConsumerFlowProperties;
 import com.solacesystems.jcsmp.EndpointProperties;
 import com.solacesystems.jcsmp.FlowReceiver;
+import com.solacesystems.jcsmp.JCSMPErrorResponseException;
 import com.solacesystems.jcsmp.JCSMPException;
 import com.solacesystems.jcsmp.JCSMPFactory;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import com.solacesystems.jcsmp.JCSMPSession;
+import com.solacesystems.jcsmp.JCSMPTransportException;
 import com.solacesystems.jcsmp.Queue;
 import com.solacesystems.jcsmp.XMLMessageProducer;
 import org.apache.beam.sdk.testing.PAssert;
@@ -49,6 +51,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.Assert.assertNotNull;
 
 @RunWith(JUnit4.class)
@@ -244,14 +249,54 @@ public class SolaceIOIT extends ITBase {
 	}
 
 	@Test
+	public void testFailBrokerCxn() {
+		testJcsmpProperties.setProperty(JCSMPProperties.HOST, "localhost");
+		testJcsmpProperties.setProperty(JCSMPProperties.USERNAME, "dummy");
+		testJcsmpProperties.setProperty(JCSMPProperties.PASSWORD, "dummy");
+		testJcsmpProperties.setProperty(JCSMPProperties.VPN_NAME, "dummy");
+
+		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,
+				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper());
+
+		thrown.expect(RuntimeException.class);
+		try {
+			// For whatever reason Google Dataflow isn't returning nested Exceptions
+			// Restricting these assertions to only DirectRunner
+			Class.forName("org.apache.beam.runners.direct.DirectRunner");
+
+			thrown.expectCause(instanceOf(IOException.class));
+			thrown.expectMessage("Failed to start UnboundSolaceReader");
+			thrown.expectCause(hasProperty("cause", allOf(
+					instanceOf(JCSMPTransportException.class),
+					hasProperty("message", containsString("Error communicating with the router"))
+			)));
+		} catch (ClassNotFoundException ignored) {}
+
+		testPipeline.apply(read);
+		testPipeline.run();
+	}
+
+	@Test
 	public void testQueueNotFound() {
 		testQueues.add(UUID.randomUUID().toString());
 
 		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,
 				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper());
 
-		thrown.expectCause(instanceOf(IOException.class));
-		thrown.expectMessage("Unknown Queue");
+		thrown.expect(RuntimeException.class);
+
+		try {
+			// For whatever reason Google Dataflow isn't returning nested Exceptions
+			// Restricting these assertions to only DirectRunner
+			Class.forName("org.apache.beam.runners.direct.DirectRunner");
+
+			thrown.expectCause(instanceOf(IOException.class));
+			thrown.expectMessage("Failed to start UnboundSolaceReader");
+			thrown.expectCause(hasProperty("cause", allOf(
+					instanceOf(JCSMPErrorResponseException.class),
+					hasProperty("message", containsString("Unknown Queue"))
+			)));
+		} catch (ClassNotFoundException ignored) {}
 
 		testPipeline.apply(read);
 		testPipeline.run();

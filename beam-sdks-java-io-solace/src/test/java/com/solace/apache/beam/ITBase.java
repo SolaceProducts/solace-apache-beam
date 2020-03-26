@@ -20,14 +20,15 @@ import java.util.Optional;
 public abstract class ITBase {
 	private static final Logger LOG = LoggerFactory.getLogger(SolaceIOIT.class);
 
+	JCSMPProperties testJcsmpProperties;
 	JCSMPSession jcsmpSession;
 	XMLMessageProducer producer;
 	SempOperationUtils sempOps;
 
-	static JCSMPProperties testJcsmpProperties;
-	static String mgmtHost;
-	static String mgmtUsername;
-	static String mgmtPassword;
+	private static JCSMPProperties detectedJcsmpProperties;
+	private static String mgmtHost;
+	private static String mgmtUsername;
+	private static String mgmtPassword;
 
 	@BeforeClass
 	public static void fetchPubSubConnectionDetails() {
@@ -38,17 +39,17 @@ public abstract class ITBase {
 
 		String solaceHostName = Optional.ofNullable(System.getenv("SOLACE_HOST")).orElse(options.getSolaceHostName());
 
-		testJcsmpProperties = new JCSMPProperties();
-		testJcsmpProperties.setProperty(JCSMPProperties.VPN_NAME,
+		detectedJcsmpProperties = new JCSMPProperties();
+		detectedJcsmpProperties.setProperty(JCSMPProperties.VPN_NAME,
 				Optional.ofNullable(System.getenv("SOLACE_VPN_NAME")).orElse(options.getSolaceVpnName()));
-		testJcsmpProperties.setProperty(JCSMPProperties.HOST, String.format("tcp://%s:%s", solaceHostName,
+		detectedJcsmpProperties.setProperty(JCSMPProperties.HOST, String.format("tcp://%s:%s", solaceHostName,
 				Optional.ofNullable(System.getenv("SOLACE_SMF_PORT")).orElse(String.valueOf(options.getSolaceSmfPort()))));
-		testJcsmpProperties.setProperty(JCSMPProperties.USERNAME,
+		detectedJcsmpProperties.setProperty(JCSMPProperties.USERNAME,
 				Optional.ofNullable(System.getenv("SOLACE_USERNAME")).orElse(options.getSolaceUsername()));
-		testJcsmpProperties.setProperty(JCSMPProperties.PASSWORD,
+		detectedJcsmpProperties.setProperty(JCSMPProperties.PASSWORD,
 				Optional.ofNullable(System.getenv("SOLACE_PASSWORD")).orElse(options.getSolacePassword()));
 
-		testJcsmpProperties.setBooleanProperty(JCSMPProperties.GENERATE_SEQUENCE_NUMBERS, true);
+		detectedJcsmpProperties.setBooleanProperty(JCSMPProperties.GENERATE_SEQUENCE_NUMBERS, true);
 
 		mgmtHost = String.format("https://%s:%s", solaceHostName,
 				Optional.ofNullable(System.getenv("SOLACE_MGMT_PORT")).orElse(String.valueOf(options.getSolaceMgmtPort())));
@@ -58,6 +59,8 @@ public abstract class ITBase {
 
 	@Before
 	public void setupConnection() throws Exception {
+		testJcsmpProperties = (JCSMPProperties) detectedJcsmpProperties.clone();
+
 		LOG.info(String.format("Creating JCSMP Session for %s", testJcsmpProperties.getStringProperty(JCSMPProperties.HOST)));
 		jcsmpSession = JCSMPFactory.onlyInstance().createSession(testJcsmpProperties);
 

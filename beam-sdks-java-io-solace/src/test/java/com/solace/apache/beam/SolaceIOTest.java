@@ -2,11 +2,8 @@ package com.solace.apache.beam;
 
 import com.solacesystems.jcsmp.JCSMPProperties;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.TestPipeline;
 import org.joda.time.Duration;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -15,7 +12,6 @@ import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -28,7 +24,6 @@ import static org.junit.Assert.assertNull;
 
 @RunWith(JUnit4.class)
 public class SolaceIOTest {
-	@Rule public final transient TestPipeline testPipeline = TestPipeline.create();
 	@Rule public ExpectedException thrown = ExpectedException.none();
 
 	private JCSMPProperties testJcsmpProperties;
@@ -36,15 +31,10 @@ public class SolaceIOTest {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SolaceIOTest.class);
 
-	@BeforeClass
-	public static void globalSetup() {
-		PipelineOptionsFactory.register(SolaceIOTestPipelineOptions.class);
-	}
-
 	@Before
 	public void setup() {
 		testJcsmpProperties = new JCSMPProperties();
-		testJcsmpProperties.setProperty(JCSMPProperties.HOST, "localhost");
+		testJcsmpProperties.setProperty(JCSMPProperties.HOST, "dummySolacePubsubHost");
 		testJcsmpProperties.setProperty(JCSMPProperties.USERNAME, "dummy");
 		testJcsmpProperties.setProperty(JCSMPProperties.PASSWORD, "dummy");
 		testJcsmpProperties.setProperty(JCSMPProperties.VPN_NAME, "dummy");
@@ -269,18 +259,5 @@ public class SolaceIOTest {
 
 		SolaceIO.read(testJcsmpProperties, testQueues, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
 				.withMaxReadTime(new Duration(-1));
-	}
-
-	@Test
-	public void testFailBrokerCxn() {
-		testJcsmpProperties.setProperty(JCSMPProperties.HOST, "localhost");
-		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,
-				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper());
-
-		thrown.expectCause(instanceOf(IOException.class));
-		thrown.expectMessage("Error communicating with the router");
-
-		testPipeline.apply(read);
-		testPipeline.run();
 	}
 }

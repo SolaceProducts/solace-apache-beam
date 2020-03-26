@@ -141,14 +141,16 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 			return advance();
 
 		} catch (Exception ex) {
-			ex.printStackTrace();
-			throw new IOException(ex);
+			String msg = String.format("Failed to start UnboundSolaceReader for Solace session %s for queue: %s",
+					clientName, source.getQueueName());
+			LOG.error(msg, ex);
+			throw new IOException(msg, ex);
 		}
 	}
 
 	@Override
 	public boolean advance() throws IOException {
-		//LOG.debug("Advancing Solace session [{}] on queue [{}]...", this.clientName, source.getQueueName());
+		LOG.debug("Advancing Solace session [{}] on queue [{}]...", this.clientName, source.getQueueName());
 		Instant timeNow = Instant.now();
 		this.isActive.set(true);
 		readerStats.setCurrentAdvanceTime(timeNow);

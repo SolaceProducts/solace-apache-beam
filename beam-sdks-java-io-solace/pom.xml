@@ -39,14 +39,11 @@
 			<artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
 		</dependency>
 
-		<!-- https://mvnrepository.com/artifact/com.solacesystems/sol-jcsmp -->
 		<dependency>
 			<groupId>com.solacesystems</groupId>
 			<artifactId>sol-jcsmp</artifactId>
-			<version>10.7.0</version>
 		</dependency>
 
-		<!-- https://mvnrepository.com/artifact/com.google.auto.value/auto-value -->
 		<dependency>
 			<groupId>com.google.auto.value</groupId>
 			<artifactId>auto-value</artifactId>
@@ -54,7 +51,6 @@
 			<scope>provided</scope>
 		</dependency>
 
-		<!-- https://mvnrepository.com/artifact/org.slf4j/slf4j-simple -->
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-simple</artifactId>
@@ -75,12 +71,10 @@
 			<scope>test</scope>
 		</dependency>
 
-		<!-- The DirectRunner is needed for unit tests. -->
-		<dependency>
-			<groupId>org.apache.beam</groupId>
-			<artifactId>beam-runners-direct-java</artifactId>
-			<scope>test</scope>
-		</dependency>
+		<!--
+			DEPENDENCIES TO GENERATE SOLACE SEMP CLIENT
+			- - - - - - - - START - - - - - - - -
+		-->
 
 		<dependency>
 			<groupId>io.swagger</groupId>
@@ -159,17 +153,106 @@
 			<scope>test</scope>
 		</dependency>
 
-		<!-- Runtime, com.sun.xml.bind module -->
 		<dependency>
 			<groupId>org.glassfish.jaxb</groupId>
 			<artifactId>jaxb-runtime</artifactId>
 			<version>2.3.2</version>
 			<scope>test</scope>
 		</dependency>
+
+		<!--
+			- - - - - - - - END - - - - - - - -
+			DEPENDENCIES TO GENERATE SOLACE SEMP CLIENT
+		-->
 	</dependencies>
+
+	<profiles>
+		<profile>
+			<id>it</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-failsafe-plugin</artifactId>
+						<configuration>
+							<parallel>methods</parallel>
+							<threadCount>4</threadCount>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+		<profile>
+			<id>direct-runner</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
+			<!-- Makes the DirectRunner available when running pipeline IT tests. -->
+			<dependencies>
+				<dependency>
+					<groupId>org.apache.beam</groupId>
+					<artifactId>beam-runners-direct-java</artifactId>
+					<scope>test</scope>
+				</dependency>
+			</dependencies>
+		</profile>
+
+		<profile>
+			<id>dataflow-runner</id>
+			<!-- Makes the DataflowRunner available when running pipeline IT tests. -->
+			<dependencies>
+				<dependency>
+					<groupId>org.apache.beam</groupId>
+					<artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
+					<scope>test</scope>
+				</dependency>
+
+				<!--
+					Workaround for dependency conflict. Remove this when Apache Beam 2.20.0 comes out.
+					https://issues.apache.org/jira/browse/BEAM-9304
+				-->
+				<dependency>
+					<groupId>io.opencensus</groupId>
+					<artifactId>opencensus-api</artifactId>
+					<version>0.18.0</version>
+				</dependency>
+			</dependencies>
+		</profile>
+	</profiles>
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<configuration>
+					<source>1.8</source>
+					<target>1.8</target>
+				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>flatten-maven-plugin</artifactId>
+				<configuration>
+					<pomElements>
+						<profiles>remove</profiles>
+					</pomElements>
+				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<excludes>
+						<!-- workaround for generateApiTests=false in swagger-codegen-maven-plugin not working -->
+						<exclude>**/*ApiTest.java</exclude>
+					</excludes>
+				</configuration>
+			</plugin>
+
 			<plugin>
 				<groupId>io.swagger</groupId>
 				<artifactId>swagger-codegen-maven-plugin</artifactId>

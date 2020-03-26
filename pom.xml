@@ -37,6 +37,8 @@
     https://issues.apache.org/jira/browse/BEAM-9471
     -->
     <beam.version>2.18.0</beam.version>
+
+    <jcsmp.version>10.7.0</jcsmp.version>
   </properties>
 
   <licenses>
@@ -82,6 +84,12 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+
+      <dependency>
+        <groupId>com.solacesystems</groupId>
+        <artifactId>sol-jcsmp</artifactId>
+        <version>${jcsmp.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -103,6 +111,7 @@
         <configuration>
           <source>1.8</source>
           <target>1.8</target>
+          <useIncrementalCompilation>false</useIncrementalCompilation>
         </configuration>
       </plugin>
 
@@ -175,6 +184,14 @@
                 </goals>
               </execution>
             </executions>
+            <configuration>
+
+              <!--
+                Surefire's Manifest-Only Jar isn't properly interpreted by Apache Beam when detecting "filesToStage".
+                More info here: http://maven.apache.org/surefire/maven-failsafe-plugin/examples/class-loading.html
+              -->
+              <useManifestOnlyJar>false</useManifestOnlyJar>
+            </configuration>
           </plugin>
         </plugins>
       </build>
