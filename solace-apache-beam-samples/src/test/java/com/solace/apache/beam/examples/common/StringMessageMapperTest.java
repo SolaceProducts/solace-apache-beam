@@ -1,4 +1,4 @@
-package com.solace.apache.beam;
+package com.solace.apache.beam.examples.common;
 
 import com.solacesystems.jcsmp.BytesMessage;
 import com.solacesystems.jcsmp.BytesXMLMessage;

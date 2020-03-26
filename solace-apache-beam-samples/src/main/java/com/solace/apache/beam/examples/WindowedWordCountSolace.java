@@ -18,10 +18,12 @@
 package com.solace.apache.beam.examples;
 
 import com.solace.apache.beam.SolaceIO;
+import com.solace.apache.beam.examples.common.StringMessageMapper;
 import com.solace.apache.beam.examples.common.WriteOneFilePerWindow;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -153,7 +155,7 @@ public class WindowedWordCountSolace {
 		PCollection<String> input =
 				pipeline
 						/* Read from the Solace JMS Server. */
-						.apply(SolaceIO.readString(jcsmpProperties, queues)
+						.apply(SolaceIO.read(jcsmpProperties, queues, StringUtf8Coder.of(), new StringMessageMapper())
 								.withUseSenderTimestamp(options.getSts())
 								.withUseSenderMessageId(options.getSmi())
 								.withAdvanceTimeoutInMillis(options.getTimeout()));

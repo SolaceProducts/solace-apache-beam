@@ -1,5 +1,6 @@
-package com.solace.apache.beam;
+package com.solace.apache.beam.examples.common;
 
+import com.solace.apache.beam.SolaceIO;
 import com.solacesystems.jcsmp.BytesMessage;
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.MapMessage;
@@ -8,7 +9,7 @@ import com.solacesystems.jcsmp.TextMessage;
 
 import java.nio.charset.StandardCharsets;
 
-class StringMessageMapper implements SolaceIO.InboundMessageMapper<String> {
+public class StringMessageMapper implements SolaceIO.InboundMessageMapper<String> {
 	private static final long serialVersionUID = 42L;
 
 	@Override

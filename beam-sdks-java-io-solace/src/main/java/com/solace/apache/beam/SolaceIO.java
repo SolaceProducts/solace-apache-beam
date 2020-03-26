@@ -9,7 +9,6 @@ import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
@@ -45,13 +44,6 @@ public class SolaceIO {
 				.setUseSenderMessageId(false)
 				.setUseSenderTimestamp(false)
 				.build();
-	}
-
-	/**
-	 * Read Solace message as a STRING.
-	 */
-	public static Read<String> readString(JCSMPProperties jcsmpProperties, List<String> queues) {
-		return SolaceIO.read(jcsmpProperties, queues, StringUtf8Coder.of(), new StringMessageMapper());
 	}
 
 	private SolaceIO() {

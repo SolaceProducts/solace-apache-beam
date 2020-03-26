@@ -61,21 +61,6 @@ public class SolaceIOTest {
 	}
 
 	@Test
-	public void testReadStringBuildsCorrectly() {
-		SolaceIO.Read<String> read = SolaceIO.readString(testJcsmpProperties, testQueues);
-
-		assertEquals(testJcsmpProperties.toString(), read.jcsmpProperties().toString());
-		assertEquals(testQueues, read.queues());
-		assertFalse(read.useSenderMessageId());
-		assertFalse(read.useSenderTimestamp());
-		assertEquals(500, read.advanceTimeoutInMillis());
-		assertEquals(Long.MAX_VALUE, read.maxNumRecords());
-		assertNull(read.maxReadTime());
-		assertEquals(StringUtf8Coder.of(), read.coder());
-		assertThat(read.inboundMessageMapper(), instanceOf(StringMessageMapper.class));
-	}
-
-	@Test
 	public void testNullJcsmpProperties() {
 		thrown.expect(NullPointerException.class);
 		thrown.expectMessage("jcsmpProperties");
