@@ -6,6 +6,11 @@ import com.solacesystems.jcsmp.JCSMPProperties;
 import com.solacesystems.jcsmp.JCSMPSession;
 import com.solacesystems.jcsmp.JCSMPStreamingPublishEventHandler;
 import com.solacesystems.jcsmp.XMLMessageProducer;
+import org.apache.beam.runners.dataflow.TestDataflowPipelineOptions;
+import org.apache.beam.runners.dataflow.TestDataflowRunner;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
+import org.apache.beam.runners.direct.DirectRunner;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -17,6 +22,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 
+import static org.junit.Assert.fail;
+
 public abstract class ITBase {
 	private static final Logger LOG = LoggerFactory.getLogger(SolaceIOIT.class);
 
@@ -25,6 +32,7 @@ public abstract class ITBase {
 	XMLMessageProducer producer;
 	SempOperationUtils sempOps;
 
+	static PipelineOptions pipelineOptions;
 	private static JCSMPProperties detectedJcsmpProperties;
 	private static String mgmtHost;
 	private static String mgmtUsername;
@@ -32,29 +40,48 @@ public abstract class ITBase {
 
 	@BeforeClass
 	public static void fetchPubSubConnectionDetails() {
-		LOG.info("Initializing PubSub+ broker credentials");
 		PipelineOptionsFactory.register(SolaceIOTestPipelineOptions.class);
-		SolaceIOTestPipelineOptions options = TestPipeline.testingPipelineOptions().as(SolaceIOTestPipelineOptions.class);
-		PipelineOptionsValidator.validate(SolaceIOTestPipelineOptions.class, options);
+		pipelineOptions = TestPipeline.testingPipelineOptions();
 
-		String solaceHostName = Optional.ofNullable(System.getenv("SOLACE_HOST")).orElse(options.getSolaceHostName());
+		if (pipelineOptions.getRunner().equals(TestDataflowRunner.class)) {
+			LOG.info(String.format("Setting fixed pipeline options for %s", TestDataflowRunner.class.getSimpleName()));
+			TestDataflowPipelineOptions dataflowOps = pipelineOptions.as(TestDataflowPipelineOptions.class);
+			dataflowOps.setAutoscalingAlgorithm(DataflowPipelineWorkerPoolOptions.AutoscalingAlgorithmType.THROUGHPUT_BASED);
+			dataflowOps.setNumWorkers(2);
+			dataflowOps.setMaxNumWorkers(5);
+			dataflowOps.setRegion("us-central1");
+			dataflowOps.setWorkerMachineType("n1-standard-1");
+			PipelineOptionsValidator.validate(TestDataflowPipelineOptions.class, dataflowOps);
+		} else if (!pipelineOptions.getRunner().equals(DirectRunner.class)) {
+			fail(String.format("Runner %s is not supported. Please provide one of: [%s]",
+					pipelineOptions.getRunner().getSimpleName(),
+					String.join(", ",
+							TestDataflowRunner.class.getSimpleName(),
+							DirectRunner.class.getSimpleName())));
+		}
+
+		LOG.info("Initializing PubSub+ broker credentials");
+		SolaceIOTestPipelineOptions solaceOps = pipelineOptions.as(SolaceIOTestPipelineOptions.class);
+		PipelineOptionsValidator.validate(SolaceIOTestPipelineOptions.class, solaceOps);
+
+		String solaceHostName = Optional.ofNullable(System.getenv("SOLACE_HOST")).orElse(solaceOps.getSolaceHostName());
 
 		detectedJcsmpProperties = new JCSMPProperties();
 		detectedJcsmpProperties.setProperty(JCSMPProperties.VPN_NAME,
-				Optional.ofNullable(System.getenv("SOLACE_VPN_NAME")).orElse(options.getSolaceVpnName()));
+				Optional.ofNullable(System.getenv("SOLACE_VPN_NAME")).orElse(solaceOps.getSolaceVpnName()));
 		detectedJcsmpProperties.setProperty(JCSMPProperties.HOST, String.format("tcp://%s:%s", solaceHostName,
-				Optional.ofNullable(System.getenv("SOLACE_SMF_PORT")).orElse(String.valueOf(options.getSolaceSmfPort()))));
+				Optional.ofNullable(System.getenv("SOLACE_SMF_PORT")).orElse(String.valueOf(solaceOps.getSolaceSmfPort()))));
 		detectedJcsmpProperties.setProperty(JCSMPProperties.USERNAME,
-				Optional.ofNullable(System.getenv("SOLACE_USERNAME")).orElse(options.getSolaceUsername()));
+				Optional.ofNullable(System.getenv("SOLACE_USERNAME")).orElse(solaceOps.getSolaceUsername()));
 		detectedJcsmpProperties.setProperty(JCSMPProperties.PASSWORD,
-				Optional.ofNullable(System.getenv("SOLACE_PASSWORD")).orElse(options.getSolacePassword()));
+				Optional.ofNullable(System.getenv("SOLACE_PASSWORD")).orElse(solaceOps.getSolacePassword()));
 
 		detectedJcsmpProperties.setBooleanProperty(JCSMPProperties.GENERATE_SEQUENCE_NUMBERS, true);
 
 		mgmtHost = String.format("https://%s:%s", solaceHostName,
-				Optional.ofNullable(System.getenv("SOLACE_MGMT_PORT")).orElse(String.valueOf(options.getSolaceMgmtPort())));
-		mgmtUsername = Optional.ofNullable(System.getenv("SOLACE_MGMT_USERNAME")).orElse(options.getSolaceMgmtUsername());
-		mgmtPassword = Optional.ofNullable(System.getenv("SOLACE_MGMT_PASSWORD")).orElse(options.getSolaceMgmtPassword());
+				Optional.ofNullable(System.getenv("SOLACE_MGMT_PORT")).orElse(String.valueOf(solaceOps.getSolaceMgmtPort())));
+		mgmtUsername = Optional.ofNullable(System.getenv("SOLACE_MGMT_USERNAME")).orElse(solaceOps.getSolaceMgmtUsername());
+		mgmtPassword = Optional.ofNullable(System.getenv("SOLACE_MGMT_PASSWORD")).orElse(solaceOps.getSolaceMgmtPassword());
 	}
 
 	@Before

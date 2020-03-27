@@ -71,6 +71,32 @@
 			<scope>test</scope>
 		</dependency>
 
+		<!-- Makes the DirectRunner available when running pipeline IT tests. -->
+		<dependency>
+			<groupId>org.apache.beam</groupId>
+			<artifactId>beam-runners-direct-java</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- Makes the DataflowRunner available when running pipeline IT tests. -->
+		<dependency>
+			<groupId>org.apache.beam</groupId>
+			<artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<!--
+			Workaround for dependency conflict when using beam-runners-google-cloud-dataflow-java.
+			Remove this when Apache Beam 2.20.0 comes out.
+			https://issues.apache.org/jira/browse/BEAM-9304
+		-->
+		<dependency>
+			<groupId>io.opencensus</groupId>
+			<artifactId>opencensus-api</artifactId>
+			<version>0.18.0</version>
+			<scope>test</scope>
+		</dependency>
+
 		<!--
 			DEPENDENCIES TO GENERATE SOLACE SEMP CLIENT
 			- - - - - - - - START - - - - - - - -
@@ -181,43 +207,6 @@
 					</plugin>
 				</plugins>
 			</build>
-		</profile>
-
-		<profile>
-			<id>direct-runner</id>
-			<activation>
-				<activeByDefault>true</activeByDefault>
-			</activation>
-			<!-- Makes the DirectRunner available when running pipeline IT tests. -->
-			<dependencies>
-				<dependency>
-					<groupId>org.apache.beam</groupId>
-					<artifactId>beam-runners-direct-java</artifactId>
-					<scope>test</scope>
-				</dependency>
-			</dependencies>
-		</profile>
-
-		<profile>
-			<id>dataflow-runner</id>
-			<!-- Makes the DataflowRunner available when running pipeline IT tests. -->
-			<dependencies>
-				<dependency>
-					<groupId>org.apache.beam</groupId>
-					<artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
-					<scope>test</scope>
-				</dependency>
-
-				<!--
-					Workaround for dependency conflict. Remove this when Apache Beam 2.20.0 comes out.
-					https://issues.apache.org/jira/browse/BEAM-9304
-				-->
-				<dependency>
-					<groupId>io.opencensus</groupId>
-					<artifactId>opencensus-api</artifactId>
-					<version>0.18.0</version>
-				</dependency>
-			</dependencies>
 		</profile>
 	</profiles>
 

@@ -58,7 +58,7 @@ import static org.junit.Assert.assertNotNull;
 
 @RunWith(JUnit4.class)
 public class SolaceIOIT extends ITBase {
-	@Rule public final transient TestPipeline testPipeline = TestPipeline.create();
+	@Rule public final transient TestPipeline testPipeline = TestPipeline.fromOptions(pipelineOptions);
 	@Rule public ExpectedException thrown = ExpectedException.none();
 
 	private List<String> testQueues;
