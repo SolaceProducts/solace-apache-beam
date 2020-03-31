@@ -1,5 +1,7 @@
 package com.solace.apache.beam;
 
+import com.solace.apache.beam.test.fn.ExtractSolacePayloadFn;
+import com.solace.apache.beam.test.transform.CountMessagesPTransform;
 import com.solace.semp.v2.action.ApiException;
 import com.solace.semp.v2.config.model.MsgVpnQueue;
 import com.solacesystems.jcsmp.BytesXMLMessage;
@@ -16,10 +18,6 @@ import com.solacesystems.jcsmp.Queue;
 import com.solacesystems.jcsmp.XMLMessageProducer;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
@@ -69,33 +67,6 @@ public class SolaceIOIT extends ITBase {
 	private static final int NUM_MSGS_PER_QUEUE = 10;
 	private static final ScheduledExecutorService SCHEDULER = Executors.newScheduledThreadPool(1);
 
-	private static class ExtractPayloadFn extends DoFn<SolaceTestRecord, String> {
-		private static final Logger LOG = LoggerFactory.getLogger(ExtractPayloadFn.class);
-
-		@ProcessElement
-		public void processElement(@Element SolaceTestRecord record, OutputReceiver<String> receiver) {
-			LOG.info(String.format("Received message from queue %s:\n%s", record.getDestination(), record));
-			receiver.output(record.getPayload());
-		}
-	}
-
-	private static class CountMessages extends PTransform<PCollection<String>, PCollection<Long>> {
-		private static final Logger LOG = LoggerFactory.getLogger(CountMessages.class);
-
-		@Override
-		public PCollection<Long> expand(PCollection<String> lines) {
-			// Count the number of times each word occurs.
-			return lines.apply(Combine.globally(Count.<String>combineFn()).withoutDefaults())
-					.apply(ParDo.of(new DoFn<Long, Long>() {
-						@ProcessElement
-						public void processElement(@Element Long count, OutputReceiver<Long> receiver) {
-							LOG.info(String.format("Messages Received Count: %s", count));
-							receiver.output(count);
-						}
-					}));
-		}
-	}
-
 	@AfterClass
 	public static void globalTeardown() {
 		if (SCHEDULER.isTerminated()) {
@@ -127,8 +98,8 @@ public class SolaceIOIT extends ITBase {
 				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
 				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
 
-		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractPayloadFn()));
-		PCollection<Long> counts = messagePayloads.apply(new CountMessages());
+		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
+		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
 
 		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
 		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
@@ -146,8 +117,8 @@ public class SolaceIOIT extends ITBase {
 				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
 				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
 
-		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractPayloadFn()));
-		PCollection<Long> counts = messagePayloads.apply(new CountMessages());
+		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
+		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
 
 		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
 		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
@@ -165,8 +136,8 @@ public class SolaceIOIT extends ITBase {
 				.withUseSenderMessageId(true)
 				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
 
-		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractPayloadFn()));
-		PCollection<Long> counts = messagePayloads.apply(new CountMessages());
+		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
+		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
 
 		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
 		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
@@ -184,8 +155,8 @@ public class SolaceIOIT extends ITBase {
 				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
 				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
 
-		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractPayloadFn()));
-		PCollection<Long> counts = messagePayloads.apply(new CountMessages());
+		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
+		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
 
 		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
 		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
@@ -203,8 +174,8 @@ public class SolaceIOIT extends ITBase {
 				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
 				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
 
-		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractPayloadFn()));
-		PCollection<Long> counts = messagePayloads.apply(new CountMessages());
+		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
+		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
 
 		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
 		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
@@ -223,8 +194,33 @@ public class SolaceIOIT extends ITBase {
 				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
 				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
 
-		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractPayloadFn()));
-		PCollection<Long> counts = messagePayloads.apply(new CountMessages());
+		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
+		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
+
+		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
+		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
+
+		testPipeline.run();
+		sempOps.waitForQueuesEmpty(testJcsmpProperties, testQueues, 30);
+	}
+
+	@Test
+	public void testSendDuplicateMessage() throws Exception {
+		drainQueues();
+		Queue queue = JCSMPFactory.onlyInstance().createQueue(testQueues.get(0));
+
+		LOG.info(String.format("Sending %s duplicate message to queue %s", NUM_MSGS_PER_QUEUE, queue.getName()));
+		for (int i = 0; i < NUM_MSGS_PER_QUEUE; i++) {
+			BytesXMLMessage msg = createMessage(queue.getName(), "test");
+			producer.send(msg, queue);
+		}
+
+		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,
+				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
+				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
+
+		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
+		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
 
 		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
 		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
@@ -321,8 +317,8 @@ public class SolaceIOIT extends ITBase {
 				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
 				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
 
-		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractPayloadFn()));
-		PCollection<Long> counts = messagePayloads.apply(new CountMessages());
+		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
+		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
 
 		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
 		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
@@ -366,8 +362,8 @@ public class SolaceIOIT extends ITBase {
 				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize())
 				.withUseSenderMessageId(true);
 
-		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractPayloadFn()));
-		PCollection<Long> counts = messagePayloads.apply(new CountMessages());
+		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
+		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
 
 		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
 		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
@@ -414,8 +410,8 @@ public class SolaceIOIT extends ITBase {
 				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize())
 				.withUseSenderMessageId(true);
 
-		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractPayloadFn()));
-		PCollection<Long> counts = messagePayloads.apply(new CountMessages());
+		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
+		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
 
 		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
 		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
@@ -468,8 +464,8 @@ public class SolaceIOIT extends ITBase {
 				// Inflight messages will be re-sent due to reconnect. Expect de-duplication to filter them out.
 				.withMaxNumRecords((2 * numMsgsPerQueue - 1) * getUniqueTestQueuesSize());
 
-		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractPayloadFn()));
-		PCollection<Long> counts = messagePayloads.apply(new CountMessages());
+		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
+		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
 
 		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
 		PAssert.that(counts).containsInAnyOrder((long) numMsgsPerQueue * getUniqueTestQueuesSize());
@@ -520,8 +516,8 @@ public class SolaceIOIT extends ITBase {
 				// Inflight messages will be re-sent due to reconnect. Expect de-duplication to filter them out.
 				.withMaxNumRecords((2 * NUM_MSGS_PER_QUEUE - 1) * getUniqueTestQueuesSize());
 
-		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractPayloadFn()));
-		PCollection<Long> counts = messagePayloads.apply(new CountMessages());
+		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
+		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
 
 		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
 		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
@@ -587,8 +583,8 @@ public class SolaceIOIT extends ITBase {
 				// Inflight messages will be re-sent due to reconnect. Expect de-duplication to filter them out.
 				.withMaxNumRecords((2 * NUM_MSGS_PER_QUEUE - 1) * getUniqueTestQueuesSize());
 
-		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractPayloadFn()));
-		PCollection<Long> counts = messagePayloads.apply(new CountMessages());
+		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
+		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
 
 		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
 		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
@@ -654,8 +650,8 @@ public class SolaceIOIT extends ITBase {
 				// Inflight messages will be re-sent due to reconnect. Expect de-duplication to filter them out.
 				.withMaxNumRecords((2 * NUM_MSGS_PER_QUEUE - 1) * getUniqueTestQueuesSize());
 
-		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractPayloadFn()));
-		PCollection<Long> counts = messagePayloads.apply(new CountMessages());
+		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
+		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
 
 		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
 		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());

@@ -37,6 +37,7 @@ public abstract class ITBase {
 	private static String mgmtHost;
 	private static String mgmtUsername;
 	private static String mgmtPassword;
+	static final String DATAFLOW_REGION_US_CENTRAL1 = "us-central1";
 
 	@BeforeClass
 	public static void fetchPubSubConnectionDetails() {
@@ -49,7 +50,7 @@ public abstract class ITBase {
 			dataflowOps.setAutoscalingAlgorithm(DataflowPipelineWorkerPoolOptions.AutoscalingAlgorithmType.THROUGHPUT_BASED);
 			dataflowOps.setNumWorkers(2);
 			dataflowOps.setMaxNumWorkers(5);
-			dataflowOps.setRegion("us-central1");
+			dataflowOps.setRegion(DATAFLOW_REGION_US_CENTRAL1);
 			dataflowOps.setWorkerMachineType("n1-standard-1");
 			PipelineOptionsValidator.validate(TestDataflowPipelineOptions.class, dataflowOps);
 		} else if (!pipelineOptions.getRunner().equals(DirectRunner.class)) {
