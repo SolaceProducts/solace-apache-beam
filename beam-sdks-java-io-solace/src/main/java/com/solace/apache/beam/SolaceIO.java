@@ -41,7 +41,6 @@ public class SolaceIO {
 				.setInboundMessageMapper(inboundMessageMapper)
 				.setAdvanceTimeoutInMillis(500)
 				.setMaxNumRecords(Long.MAX_VALUE)
-				.setUseSenderMessageId(false)
 				.setUseSenderTimestamp(false)
 				.build();
 	}
@@ -73,8 +72,6 @@ public class SolaceIO {
 
 		abstract boolean useSenderTimestamp();
 
-		abstract boolean useSenderMessageId();
-
 		// The timeout in milliseconds while try to receive a messages from Solace broker
 		abstract int advanceTimeoutInMillis();
 
@@ -94,9 +91,6 @@ public class SolaceIO {
 			abstract Builder<T> setQueues(List<String> queues);
 
 			abstract Builder<T> setUseSenderTimestamp(boolean useSenderTimestamp);
-
-			abstract Builder<T> setUseSenderMessageId(boolean useSenderMessageId);
-
 
 			abstract Builder<T> setAdvanceTimeoutInMillis(int timeoutInMillis);
 
@@ -129,10 +123,6 @@ public class SolaceIO {
 
 		public Read<T> withUseSenderTimestamp(boolean useSenderTimestamp) {
 			return builder().setUseSenderTimestamp(useSenderTimestamp).build();
-		}
-
-		public Read<T> withUseSenderMessageId(boolean useSenderMessageId) {
-			return builder().setUseSenderMessageId(useSenderMessageId).build();
 		}
 
 		public Read<T> withAdvanceTimeoutInMillis(int advanceTimeoutInMillis) {
@@ -186,7 +176,6 @@ public class SolaceIO {
 			super.populateDisplayData(builder);
 			builder.add(DisplayData.item("queues", String.join("\n", queues())));
 			builder.add(DisplayData.item("useSenderTimestamp", useSenderTimestamp()));
-			builder.add(DisplayData.item("useSenderMessageId", useSenderMessageId()));
 			builder.add(DisplayData.item("advanceTimeoutInMillis", advanceTimeoutInMillis()));
 			builder.addIfNotDefault(DisplayData.item("maxNumRecords", maxNumRecords()), Long.MAX_VALUE);
 			builder.addIfNotNull(DisplayData.item("maxReadTime", maxReadTime()));

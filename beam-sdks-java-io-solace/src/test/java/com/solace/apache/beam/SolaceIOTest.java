@@ -51,7 +51,6 @@ public class SolaceIOTest {
 
 		assertEquals(testJcsmpProperties.toString(), read.jcsmpProperties().toString());
 		assertEquals(testQueues, read.queues());
-		assertFalse(read.useSenderMessageId());
 		assertFalse(read.useSenderTimestamp());
 		assertEquals(500, read.advanceTimeoutInMillis());
 		assertEquals(Long.MAX_VALUE, read.maxNumRecords());

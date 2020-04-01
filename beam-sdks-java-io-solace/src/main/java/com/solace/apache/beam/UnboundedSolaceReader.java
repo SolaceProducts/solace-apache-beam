@@ -12,7 +12,6 @@ import com.solacesystems.jcsmp.JCSMPSession;
 import com.solacesystems.jcsmp.Queue;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Longs;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,9 +42,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 	protected FlowReceiver flowReceiver;
 	private MsgBusSempUtil msgBusSempUtil;
 	private boolean useSenderTimestamp;
-	private boolean useSenderMessageId;
 	private String clientName;
-	private byte[] currentMessageId;
 	private T current;
 	private Instant currentTimestamp;
 	private final EndpointProperties endpointProps = new EndpointProperties();
@@ -125,7 +122,6 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 			flow_prop.setAckMode(JCSMPProperties.SUPPORTED_MESSAGE_ACK_CLIENT);
 
 			this.useSenderTimestamp = source.getSpec().useSenderTimestamp();
-			this.useSenderMessageId = source.getSpec().useSenderMessageId();
 
 			readerStats.setLastReportTime(Instant.now());
 
@@ -178,18 +174,6 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 				}
 			} else {
 				currentTimestamp = Instant.now();
-			}
-
-			//Get messageID for de-dupping, best to use Producer Sequence Number as MessageID resets over connections
-			if (useSenderMessageId) {
-				Long seqNum = msg.getSequenceNumber();
-				if (seqNum == null) {
-					currentMessageId = msg.getMessageId().getBytes();
-				} else {
-					currentMessageId = Longs.toByteArray(seqNum);
-				}
-			} else {
-				currentMessageId = msg.getMessageId().getBytes();
 			}
 
 			// add message to checkpoint ack
@@ -329,11 +313,6 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 		LOG.debug("getSplitBacklogBytes() Reporting backlog bytes of: {} from queue {}",
 				Long.toString(backlogBytes), source.getQueueName());
 		return backlogBytes;
-	}
-
-	@Override
-	public byte[] getCurrentRecordId() {
-		return currentMessageId;
 	}
 
 	@Override

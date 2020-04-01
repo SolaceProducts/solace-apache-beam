@@ -4,7 +4,6 @@ import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.SDTMap;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.commons.lang3.builder.ToStringBuilder;
 
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
@@ -30,12 +29,12 @@ public class SolaceTestRecord implements Serializable {
 	private final long senderTimestamp;
 	private final String senderId;
 	private final long timeToLive;
-	private final long sequenceNumber;
+	private final Long sequenceNumber;
 
 	/**
 	 * Define a new Solace text record.
 	 */
-	public SolaceTestRecord(Map<String, Object> properties, String text, String destination, long expiration, long messageId, int priority, boolean redelivered, String replyTo, long receiveTimestamp, long senderTimestamp, String senderId, long timeToLive, long sequenceNumber) {
+	public SolaceTestRecord(Map<String, Object> properties, String text, String destination, long expiration, long messageId, int priority, boolean redelivered, String replyTo, long receiveTimestamp, long senderTimestamp, String senderId, long timeToLive, Long sequenceNumber) {
 		this.properties = properties;
 		this.text = text;
 		this.destination = destination;
@@ -142,7 +141,7 @@ public class SolaceTestRecord implements Serializable {
 		return timeToLive;
 	}
 
-	public long getSequenceNumber() {
+	public Long getSequenceNumber() {
 		return sequenceNumber;
 	}
 
@@ -232,7 +231,7 @@ public class SolaceTestRecord implements Serializable {
 			return new SolaceTestRecord(
 					properties,
 					msgData,
-					msg.getDestination().getName(),
+					msg.getDestination() != null ? msg.getDestination().getName() : null,
 					msg.getExpiration(),
 					msg.getMessageIdLong(),
 					msg.getPriority(),

@@ -24,7 +24,6 @@ import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -42,7 +41,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -109,8 +107,7 @@ public class SolaceIOIT extends ITBase {
 	}
 
 	@Test
-	@Ignore("Fails when deduping due to conflicting message IDs between splits")
-	public void testBasicMultiQueue() throws Exception {
+	public void testMultiQueue() throws Exception {
 		while (testQueues.size() < 2) provisionQueue();
 
 		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,
@@ -128,26 +125,6 @@ public class SolaceIOIT extends ITBase {
 	}
 
 	@Test
-	public void testBasicMultiQueueWithSenderMessageId() throws Exception {
-		while (testQueues.size() < 2) provisionQueue();
-
-		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,
-				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
-				.withUseSenderMessageId(true)
-				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
-
-		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
-		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
-
-		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
-		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
-
-		testPipeline.run();
-		sempOps.waitForQueuesEmpty(testJcsmpProperties, testQueues, 30);
-	}
-
-	@Test
-	@Ignore("Fails when deduping due to conflicting message IDs between splits")
 	public void testMultiOnSameQueue() throws Exception {
 		testQueues = Arrays.asList(testQueues.get(0), testQueues.get(0));
 
@@ -284,7 +261,6 @@ public class SolaceIOIT extends ITBase {
 	}
 
 	@Test
-	@Ignore("Fails when deduping due to conflicting message IDs between splits")
 	public void testMultiPublisher() throws Exception {
 		while (testQueues.size() < 2) provisionQueue();
 		drainQueues();
@@ -328,100 +304,6 @@ public class SolaceIOIT extends ITBase {
 	}
 
 	@Test
-	@Ignore("Fails when deduping due to conflicting sequence numbers between splits")
-	public void testMultiPublisherWithSenderMessageId() throws Exception {
-		while (testQueues.size() < 2) provisionQueue();
-		drainQueues();
-
-		for (String queueName : testQueues) {
-			Queue queue = JCSMPFactory.onlyInstance().createQueue(queueName);
-			List<JCSMPSession> jcsmpSessions = new ArrayList<>();
-			List<XMLMessageProducer> producers = new ArrayList<>();
-			try {
-				for (int i = 0; i < NUM_MSGS_PER_QUEUE; i++) {
-					LOG.info(String.format("Creating JCSMP Session #%s for %s", i, testJcsmpProperties.getStringProperty(JCSMPProperties.HOST)));
-					JCSMPSession jcsmpSession = JCSMPFactory.onlyInstance().createSession(testJcsmpProperties);
-					jcsmpSessions.add(jcsmpSession);
-
-					LOG.info(String.format("Creating XMLMessageProducer for %s", testJcsmpProperties.getStringProperty(JCSMPProperties.HOST)));
-					XMLMessageProducer producer = jcsmpSession.getMessageProducer(createPublisherEventHandler());
-					producers.add(producer);
-
-					LOG.info(String.format("Sending message %s to queue %s", i, queueName));
-					producer.send(createMessage(queueName, String.valueOf(i)), queue);
-				}
-			} finally {
-				producers.forEach(XMLMessageProducer::close);
-				jcsmpSessions.forEach(JCSMPSession::closeSession);
-			}
-		}
-
-		LOG.info("Creating pipeline...");
-		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,
-				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
-				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize())
-				.withUseSenderMessageId(true);
-
-		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
-		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
-
-		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
-		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
-
-		testPipeline.run();
-		sempOps.waitForQueuesEmpty(testJcsmpProperties, testQueues, 30);
-	}
-
-	@Test
-	public void testMultiPublisherWithRandomSenderMessageId() throws Exception {
-		while (testQueues.size() < 2) provisionQueue();
-		drainQueues();
-
-		Random random = new Random();
-
-		for (String queueName : testQueues) {
-			Queue queue = JCSMPFactory.onlyInstance().createQueue(queueName);
-			List<JCSMPSession> jcsmpSessions = new ArrayList<>();
-			List<XMLMessageProducer> producers = new ArrayList<>();
-			try {
-				for (int i = 0; i < NUM_MSGS_PER_QUEUE; i++) {
-					LOG.info(String.format("Creating JCSMP Session #%s for %s", i, testJcsmpProperties.getStringProperty(JCSMPProperties.HOST)));
-					JCSMPSession jcsmpSession = JCSMPFactory.onlyInstance().createSession(testJcsmpProperties);
-					jcsmpSessions.add(jcsmpSession);
-
-					LOG.info(String.format("Creating XMLMessageProducer for %s", testJcsmpProperties.getStringProperty(JCSMPProperties.HOST)));
-					XMLMessageProducer producer = jcsmpSession.getMessageProducer(createPublisherEventHandler());
-					producers.add(producer);
-
-					LOG.info(String.format("Sending message %s to queue %s", i, queueName));
-					BytesXMLMessage message = createMessage(queueName, String.valueOf(i));
-					message.setSequenceNumber(random.nextLong());
-					producer.send(message, queue);
-				}
-			} finally {
-				producers.forEach(XMLMessageProducer::close);
-				jcsmpSessions.forEach(JCSMPSession::closeSession);
-			}
-		}
-
-		LOG.info("Creating pipeline...");
-		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,
-				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
-				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize())
-				.withUseSenderMessageId(true);
-
-		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
-		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
-
-		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
-		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
-
-		testPipeline.run();
-		sempOps.waitForQueuesEmpty(testJcsmpProperties, testQueues, 30);
-	}
-
-	@Test
-	@Ignore("Fails due to deduping after message ID reset")
 	public void testSessionReconnect() throws Exception {
 		while (testQueues.size() < 2) provisionQueue();
 		drainQueues();
@@ -431,7 +313,13 @@ public class SolaceIOIT extends ITBase {
 
 		for (String queueName : testQueues) {
 			LOG.info(String.format("Sending new message to queue %s", queueName));
-			producer.send(createMessage(queueName, "1"), JCSMPFactory.onlyInstance().createQueue(queueName));
+			BytesXMLMessage msg = createMessage(queueName, "1");
+			producer.send(msg, JCSMPFactory.onlyInstance().createQueue(queueName));
+
+			String msgPayload = SolaceTestRecord.getMapper().map(msg).getPayload();
+			LOG.info(String.format("Adding duplicate message %s to expectedMsgPayloads", msgPayload));
+			expectedMsgPayloads.add(msgPayload);
+
 			nexMessageToAdd.put(queueName, createMessage(queueName, "2"));
 		}
 
@@ -461,81 +349,32 @@ public class SolaceIOIT extends ITBase {
 				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
 				.withMaxReadTime(Duration.standardMinutes(3)) // Timeout in case something breaks in a thread
 
-				// Inflight messages will be re-sent due to reconnect. Expect de-duplication to filter them out.
+				// Inflight messages will be re-sent due to reconnect
 				.withMaxNumRecords((2 * numMsgsPerQueue - 1) * getUniqueTestQueuesSize());
 
 		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
 		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
 
 		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
-		PAssert.that(counts).containsInAnyOrder((long) numMsgsPerQueue * getUniqueTestQueuesSize());
+		PAssert.that(counts).containsInAnyOrder((long) (2 * numMsgsPerQueue - 1) * getUniqueTestQueuesSize());
 
 		testPipeline.run();
 		sempOps.waitForQueuesEmpty(testJcsmpProperties, testQueues, 30);
 	}
 
 	@Test
-	public void testSessionReconnectWithSenderMessageId() throws Exception {
-		while (testQueues.size() < 2) provisionQueue();
-
-		Map<String, BytesXMLMessage> messagesToResendPerQueue = new HashMap<>();
-		for (String queueName : testQueues) {
-			// Need to pre-consume a message to prevent the batched/blocking pipeline from closing
-			LOG.info(String.format("Pre-consuming one message from queue %s", queueName));
-			SolaceTestRecord message = removeOneMessageFromQueue(queueName);
-			messagesToResendPerQueue.put(queueName, createMessage(queueName, message.getPayload()));
-		}
-
-		SCHEDULER.schedule(() -> {
-			try {
-				sempOps.disconnectClients(testJcsmpProperties,
-						Collections.singleton((String) jcsmpSession.getProperty(JCSMPProperties.CLIENT_NAME)));
-				Thread.sleep(5000);
-			} catch (Exception e) {
-				LOG.error("Failed to disconnect all clients", e);
-				throw new RuntimeException(e);
-			}
-
-			for (String queueName : testQueues) {
-				LOG.info(String.format("Sending new message to queue %s", queueName));
-				Queue queue = JCSMPFactory.onlyInstance().createQueue(queueName);
-				try {
-					producer.send(messagesToResendPerQueue.get(queueName), queue);
-				} catch (JCSMPException e) {
-					LOG.error(String.format("Failed to send message to queue %s", queueName), e);
-					throw new RuntimeException(e);
-				}
-			}
-		}, 15, TimeUnit.SECONDS);
-
-		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,
-				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
-				.withUseSenderMessageId(true)
-				.withMaxReadTime(Duration.standardMinutes(3)) // Timeout in case something breaks in a thread
-
-				// Inflight messages will be re-sent due to reconnect. Expect de-duplication to filter them out.
-				.withMaxNumRecords((2 * NUM_MSGS_PER_QUEUE - 1) * getUniqueTestQueuesSize());
-
-		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
-		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
-
-		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
-		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
-
-		testPipeline.run();
-		sempOps.waitForQueuesEmpty(testJcsmpProperties, testQueues, 30);
-	}
-
-	@Test
-	@Ignore("Fails due to deduping after message ID reset")
 	public void testFlowReconnect() throws Exception {
 		while (testQueues.size() < 2) provisionQueue();
 
+		LOG.info("Adding duplicates of expectedMsgPayloads since we're expecting some message duplication");
+		expectedMsgPayloads.addAll(new ArrayList<>(expectedMsgPayloads));
+
 		Map<String, BytesXMLMessage> messagesToResendPerQueue = new HashMap<>();
 		for (String queueName : testQueues) {
 			// Need to pre-consume a message to prevent the batched/blocking pipeline from closing
 			LOG.info(String.format("Pre-consuming one message from queue %s", queueName));
 			SolaceTestRecord message = removeOneMessageFromQueue(queueName);
+			expectedMsgPayloads.remove(message.getPayload()); // Removing the duplicate
 			messagesToResendPerQueue.put(queueName, createMessage(queueName, message.getPayload()));
 		}
 
@@ -580,81 +419,14 @@ public class SolaceIOIT extends ITBase {
 				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
 				.withMaxReadTime(Duration.standardMinutes(3)) // Timeout in case something breaks in a thread
 
-				// Inflight messages will be re-sent due to reconnect. Expect de-duplication to filter them out.
+				// Inflight messages will be re-sent due to reconnect
 				.withMaxNumRecords((2 * NUM_MSGS_PER_QUEUE - 1) * getUniqueTestQueuesSize());
 
 		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
 		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
 
 		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
-		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
-
-		testPipeline.run();
-		sempOps.waitForQueuesEmpty(testJcsmpProperties, testQueues, 30);
-	}
-
-	@Test
-	public void testFlowReconnectWithSenderMessageId() throws Exception {
-		while (testQueues.size() < 2) provisionQueue();
-
-		Map<String, BytesXMLMessage> messagesToResendPerQueue = new HashMap<>();
-		for (String queueName : testQueues) {
-			// Need to pre-consume a message to prevent the batched/blocking pipeline from closing
-			LOG.info(String.format("Pre-consuming one message from queue %s", queueName));
-			SolaceTestRecord message = removeOneMessageFromQueue(queueName);
-			messagesToResendPerQueue.put(queueName, createMessage(queueName, message.getPayload()));
-		}
-
-		SCHEDULER.schedule(() -> {
-			for (String queueName : testQueues) {
-				try {
-					sempOps.shutdownQueueEgress(testJcsmpProperties, queueName);
-					Thread.sleep(5000);
-				} catch (Exception e) {
-					LOG.error(String.format("Failed to shutdown queue egress for queue %s", queueName), e);
-					throw new RuntimeException(e);
-				}
-
-				LOG.info(String.format("Sending new message to queue %s", queueName));
-				Queue queue = JCSMPFactory.onlyInstance().createQueue(queueName);
-				try {
-					producer.send(messagesToResendPerQueue.get(queueName), queue);
-				} catch (JCSMPException e) {
-					LOG.error(String.format("Failed to send message to queue %s", queueName), e);
-					throw new RuntimeException(e);
-				}
-			}
-
-			try {
-				Thread.sleep(5000);
-			} catch (InterruptedException e) {
-				LOG.error("Sleep interrupted", e);
-				throw new RuntimeException(e);
-			}
-
-			for (String queueName : testQueues) {
-				try {
-					sempOps.enableQueueEgress(testJcsmpProperties, queueName);
-				} catch (Exception e) {
-					LOG.error(String.format("Failed to enable queue egress for queue %s", queueName), e);
-					throw new RuntimeException(e);
-				}
-			}
-		}, 15, TimeUnit.SECONDS);
-
-		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,
-				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
-				.withUseSenderMessageId(true)
-				.withMaxReadTime(Duration.standardMinutes(3)) // Timeout in case something breaks in a thread
-
-				// Inflight messages will be re-sent due to reconnect. Expect de-duplication to filter them out.
-				.withMaxNumRecords((2 * NUM_MSGS_PER_QUEUE - 1) * getUniqueTestQueuesSize());
-
-		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
-		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
-
-		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
-		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
+		PAssert.that(counts).containsInAnyOrder((long) (2 * NUM_MSGS_PER_QUEUE - 1) * getUniqueTestQueuesSize());
 
 		testPipeline.run();
 		sempOps.waitForQueuesEmpty(testJcsmpProperties, testQueues, 30);

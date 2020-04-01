@@ -77,8 +77,6 @@ public abstract class ITBase {
 		detectedJcsmpProperties.setProperty(JCSMPProperties.PASSWORD,
 				Optional.ofNullable(System.getenv("SOLACE_PASSWORD")).orElse(solaceOps.getSolacePassword()));
 
-		detectedJcsmpProperties.setBooleanProperty(JCSMPProperties.GENERATE_SEQUENCE_NUMBERS, true);
-
 		mgmtHost = String.format("https://%s:%s", solaceHostName,
 				Optional.ofNullable(System.getenv("SOLACE_MGMT_PORT")).orElse(String.valueOf(solaceOps.getSolaceMgmtPort())));
 		mgmtUsername = Optional.ofNullable(System.getenv("SOLACE_MGMT_USERNAME")).orElse(solaceOps.getSolaceMgmtUsername());
