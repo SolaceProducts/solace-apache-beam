@@ -1,0 +1,7 @@
+syntax = "proto2";
+
+package org.apache.beam.examples;
+
+message Test {
+    required string test = 1;
+}
