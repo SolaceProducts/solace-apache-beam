@@ -15,12 +15,7 @@ import com.solacesystems.jcsmp.JCSMPProperties;
 import com.solacesystems.jcsmp.JCSMPSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.xml.sax.SAXException;
 
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.TransformerException;
-import javax.xml.xpath.XPathExpressionException;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -37,6 +32,7 @@ public class SempOperationUtils {
 	private QueueApi queueConfigApi;
 	private com.solace.semp.v2.action.api.ClientApi clientActionApi;
 	private com.solace.semp.v2.action.api.QueueApi queueActionApi;
+	private com.solace.semp.v2.monitor.api.QueueApi queueMonitorApi;
 
 	private MsgBusSempUtil msgBusSempUtil;
 
@@ -69,6 +65,15 @@ public class SempOperationUtils {
 
 		clientActionApi = new com.solace.semp.v2.action.api.ClientApi(actionApiClient);
 		queueActionApi = new com.solace.semp.v2.action.api.QueueApi(actionApiClient);
+
+		LOG.info(String.format("Creating Monitor API Clients for %s", mgmtHost));
+		com.solace.semp.v2.monitor.ApiClient monitorApiClient = new com.solace.semp.v2.monitor.ApiClient();
+		monitorApiClient.getJSON().getContext(null).configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+		monitorApiClient.setBasePath(String.format("%s/SEMP/v2/monitor", mgmtHost));
+		monitorApiClient.setUsername(mgmtUsername);
+		monitorApiClient.setPassword(mgmtPassword);
+
+		queueMonitorApi = new com.solace.semp.v2.monitor.api.QueueApi(monitorApiClient);
 	}
 
 	public void close() {
@@ -135,17 +140,32 @@ public class SempOperationUtils {
 		}
 	}
 
-	public boolean isQueueEmpty(JCSMPProperties jcsmpProperties, String queueName)
-			throws SAXException, TransformerException, IOException, XPathExpressionException, JCSMPException, ParserConfigurationException {
-		String request = String.format("<rpc><show><queue><name>%s</name><vpn-name>%s</vpn-name></queue></show></rpc>",
-				queueName, jcsmpProperties.getStringProperty(JCSMPProperties.VPN_NAME));
-		String queryString = "/rpc-reply/rpc/show/queue/queues/queue/info/current-spool-usage-in-bytes";
-		String queryResults = msgBusSempUtil.queryRouter(request, queryString);
-		return Long.parseLong(queryResults) <= 0;
+	public long getQueueMessageCount(JCSMPProperties jcsmpProperties, String queueName) throws com.solace.semp.v2.monitor.ApiException {
+		String msgVpn = jcsmpProperties.getStringProperty(JCSMPProperties.VPN_NAME);
+		long count = 0;
+		String cursor = null;
+		do {
+			com.solace.semp.v2.monitor.model.MsgVpnQueueMsgsResponse response = queueMonitorApi
+					.getMsgVpnQueueMsgs(msgVpn, queueName, Integer.MAX_VALUE, cursor, null, null);
+			count += response.getData().size();
+			cursor = response.getMeta() != null && response.getMeta().getPaging() != null ?
+					response.getMeta().getPaging().getCursorQuery() : null;
+		} while (cursor != null);
+		return count;
+	}
+
+	public long getQueueUnackedMessageCount(JCSMPProperties jcsmpProperties, String queueName) throws com.solace.semp.v2.monitor.ApiException {
+		String msgVpn = jcsmpProperties.getStringProperty(JCSMPProperties.VPN_NAME);
+		return queueMonitorApi.getMsgVpnQueue(msgVpn, queueName, null).getData().getTxUnackedMsgCount();
+	}
+
+	public boolean isQueueEmpty(JCSMPProperties jcsmpProperties, String queueName) throws com.solace.semp.v2.monitor.ApiException {
+		String msgVpn = jcsmpProperties.getStringProperty(JCSMPProperties.VPN_NAME);
+		return queueMonitorApi.getMsgVpnQueue(msgVpn, queueName, null).getData().getMsgSpoolUsage() <= 0;
 	}
 
 	public void waitForQueuesEmpty(JCSMPProperties jcsmpProperties, Collection<String> queues, long waitSecs)
-			throws SAXException, TransformerException, IOException, XPathExpressionException, JCSMPException, ParserConfigurationException, InterruptedException {
+			throws InterruptedException, com.solace.semp.v2.monitor.ApiException {
 		for (String queueName : new HashSet<>(queues)) {
 			boolean isEmpty = false;
 			long sleep = 5000;

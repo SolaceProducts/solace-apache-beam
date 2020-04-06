@@ -200,10 +200,10 @@
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-failsafe-plugin</artifactId>
-						<configuration>
-							<parallel>methods</parallel>
-							<threadCount>4</threadCount>
-						</configuration>
+<!--						<configuration>-->
+<!--							<parallel>methods</parallel>-->
+<!--							<threadCount>4</threadCount>-->
+<!--						</configuration>-->
 					</plugin>
 				</plugins>
 			</build>
@@ -248,6 +248,28 @@
 				<version>2.4.2</version>
 				<executions>
 					<execution>
+						<id>generate-semp-action-api</id>
+						<phase>generate-test-sources</phase>
+						<goals>
+							<goal>generate</goal>
+						</goals>
+						<configuration>
+							<inputSpec>${project.basedir}/src/test/resources/semp-v2-swagger-action.json</inputSpec>
+							<output>${project.build.directory}/generated-test-sources/swagger</output>
+							<language>java</language>
+							<apiPackage>com.solace.semp.v2.action.api</apiPackage>
+							<modelPackage>com.solace.semp.v2.action.model</modelPackage>
+							<library>jersey2</library>
+							<configOptions>
+								<sourceFolder>src/test/java</sourceFolder>
+								<interfaceOnly>true</interfaceOnly>
+								<useTags>true</useTags>
+								<dateLibrary>joda</dateLibrary>
+								<hideGenerationTimestamp>true</hideGenerationTimestamp>
+							</configOptions>
+						</configuration>
+					</execution>
+					<execution>
 						<id>generate-semp-config-api</id>
 						<phase>generate-test-sources</phase>
 						<goals>
@@ -270,17 +292,17 @@
 						</configuration>
 					</execution>
 					<execution>
-						<id>generate-semp-action-api</id>
+						<id>generate-semp-monitor-api</id>
 						<phase>generate-test-sources</phase>
 						<goals>
 							<goal>generate</goal>
 						</goals>
 						<configuration>
-							<inputSpec>${project.basedir}/src/test/resources/semp-v2-swagger-action.json</inputSpec>
+							<inputSpec>${project.basedir}/src/test/resources/semp-v2-swagger-monitor.json</inputSpec>
 							<output>${project.build.directory}/generated-test-sources/swagger</output>
 							<language>java</language>
-							<apiPackage>com.solace.semp.v2.action.api</apiPackage>
-							<modelPackage>com.solace.semp.v2.action.model</modelPackage>
+							<apiPackage>com.solace.semp.v2.monitor.api</apiPackage>
+							<modelPackage>com.solace.semp.v2.monitor.model</modelPackage>
 							<library>jersey2</library>
 							<configOptions>
 								<sourceFolder>src/test/java</sourceFolder>

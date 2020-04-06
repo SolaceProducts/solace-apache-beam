@@ -1,5 +1,6 @@
 package com.solace.apache.beam;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solacesystems.jcsmp.JCSMPException;
 import com.solacesystems.jcsmp.JCSMPFactory;
 import com.solacesystems.jcsmp.JCSMPProperties;
@@ -10,59 +11,75 @@ import org.apache.beam.runners.dataflow.TestDataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.TestDataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
 import org.apache.beam.runners.direct.DirectRunner;
+import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.joda.time.DateTimeUtils;
+import org.joda.time.format.DateTimeFormat;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.Assert.fail;
 
 public abstract class ITBase {
 	private static final Logger LOG = LoggerFactory.getLogger(SolaceIOIT.class);
 
+	transient TestPipeline testPipeline;
+	PipelineOptions pipelineOptions;
 	JCSMPProperties testJcsmpProperties;
 	JCSMPSession jcsmpSession;
 	XMLMessageProducer producer;
 	SempOperationUtils sempOps;
 
-	static PipelineOptions pipelineOptions;
+	static PipelineOptions sharedPipelineOptions;
 	private static JCSMPProperties detectedJcsmpProperties;
 	private static String mgmtHost;
 	private static String mgmtUsername;
 	private static String mgmtPassword;
 	static final String DATAFLOW_REGION_US_CENTRAL1 = "us-central1";
+	private static final ObjectMapper MAPPER = new ObjectMapper();
+
+	@Rule
+	public TestPipeline getTestPipeline() {
+		LOG.info(String.format("Generating new %s", TestPipeline.class.getSimpleName()));
+		pipelineOptions = MAPPER.convertValue(MAPPER.valueToTree(sharedPipelineOptions), PipelineOptions.class);
+		testPipeline = TestPipeline.fromOptions(pipelineOptions);
+		return testPipeline;
+	}
 
 	@BeforeClass
 	public static void fetchPubSubConnectionDetails() {
 		PipelineOptionsFactory.register(SolaceIOTestPipelineOptions.class);
-		pipelineOptions = TestPipeline.testingPipelineOptions();
+		sharedPipelineOptions = TestPipeline.testingPipelineOptions();
 
-		if (pipelineOptions.getRunner().equals(TestDataflowRunner.class)) {
+		if (sharedPipelineOptions.getRunner().equals(TestDataflowRunner.class)) {
 			LOG.info(String.format("Setting fixed pipeline options for %s", TestDataflowRunner.class.getSimpleName()));
-			TestDataflowPipelineOptions dataflowOps = pipelineOptions.as(TestDataflowPipelineOptions.class);
+			TestDataflowPipelineOptions dataflowOps = sharedPipelineOptions.as(TestDataflowPipelineOptions.class);
 			dataflowOps.setAutoscalingAlgorithm(DataflowPipelineWorkerPoolOptions.AutoscalingAlgorithmType.THROUGHPUT_BASED);
 			dataflowOps.setNumWorkers(2);
 			dataflowOps.setMaxNumWorkers(5);
 			dataflowOps.setRegion(DATAFLOW_REGION_US_CENTRAL1);
 			dataflowOps.setWorkerMachineType("n1-standard-1");
 			PipelineOptionsValidator.validate(TestDataflowPipelineOptions.class, dataflowOps);
-		} else if (!pipelineOptions.getRunner().equals(DirectRunner.class)) {
+		} else if (!sharedPipelineOptions.getRunner().equals(DirectRunner.class)) {
 			fail(String.format("Runner %s is not supported. Please provide one of: [%s]",
-					pipelineOptions.getRunner().getSimpleName(),
+					sharedPipelineOptions.getRunner().getSimpleName(),
 					String.join(", ",
 							TestDataflowRunner.class.getSimpleName(),
 							DirectRunner.class.getSimpleName())));
 		}
 
 		LOG.info("Initializing PubSub+ broker credentials");
-		SolaceIOTestPipelineOptions solaceOps = pipelineOptions.as(SolaceIOTestPipelineOptions.class);
+		SolaceIOTestPipelineOptions solaceOps = sharedPipelineOptions.as(SolaceIOTestPipelineOptions.class);
 		PipelineOptionsValidator.validate(SolaceIOTestPipelineOptions.class, solaceOps);
 
 		String solaceHostName = Optional.ofNullable(System.getenv("SOLACE_HOST")).orElse(solaceOps.getSolaceHostName());
@@ -85,6 +102,8 @@ public abstract class ITBase {
 
 	@Before
 	public void setupConnection() throws Exception {
+		testPipeline.getOptions().setJobName(generateJobName(pipelineOptions));
+
 		testJcsmpProperties = (JCSMPProperties) detectedJcsmpProperties.clone();
 
 		LOG.info(String.format("Creating JCSMP Session for %s", testJcsmpProperties.getStringProperty(JCSMPProperties.HOST)));
@@ -111,6 +130,17 @@ public abstract class ITBase {
 			LOG.info("Closing JCSMP Session");
 			jcsmpSession.closeSession();
 		}
+	}
+
+	private static String generateJobName(PipelineOptions pipelineOptions) {
+		String appName = pipelineOptions.as(ApplicationNameOptions.class).getAppName();
+		String normalizedAppName = appName != null && !appName.isEmpty() ?
+				appName.replaceAll("[^\\w]", "-").replaceFirst("^[^a-zA-Z]", "a") :
+				UUID.randomUUID().toString().replaceAll("-", "");
+		String username = System.getProperty("user.name", UUID.randomUUID().toString().replaceAll("-", ""));
+		String timestamp = DateTimeFormat.forPattern("yyyyMMdd-HHmmss").print(DateTimeUtils.currentTimeMillis());
+		String random = UUID.randomUUID().toString().replaceAll("-", "");
+		return String.format("%s-%s-%s-%s",normalizedAppName, username, timestamp, random).toLowerCase();
 	}
 
 	static JCSMPStreamingPublishEventHandler createPublisherEventHandler() {

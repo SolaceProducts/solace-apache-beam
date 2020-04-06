@@ -16,8 +16,9 @@ import com.solacesystems.jcsmp.JCSMPSession;
 import com.solacesystems.jcsmp.JCSMPTransportException;
 import com.solacesystems.jcsmp.Queue;
 import com.solacesystems.jcsmp.XMLMessageProducer;
+import org.apache.beam.runners.dataflow.TestDataflowPipelineOptions;
+import org.apache.beam.runners.dataflow.TestDataflowRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
@@ -45,6 +46,7 @@ import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.Matchers.allOf;
@@ -54,7 +56,6 @@ import static org.junit.Assert.assertNotNull;
 
 @RunWith(JUnit4.class)
 public class SolaceIOIT extends ITBase {
-	@Rule public final transient TestPipeline testPipeline = TestPipeline.fromOptions(pipelineOptions);
 	@Rule public ExpectedException thrown = ExpectedException.none();
 
 	private List<String> testQueues;
@@ -217,18 +218,17 @@ public class SolaceIOIT extends ITBase {
 				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper());
 
 		thrown.expect(RuntimeException.class);
-		try {
-			// For whatever reason Google Dataflow isn't returning nested Exceptions
-			// Restricting these assertions to only DirectRunner
-			Class.forName("org.apache.beam.runners.direct.DirectRunner");
 
+		// For whatever reason Google Dataflow isn't returning nested Exceptions
+		// Restricting these assertions to non Dataflow runners
+		if (!pipelineOptions.getRunner().equals(TestDataflowRunner.class)) {
 			thrown.expectCause(instanceOf(IOException.class));
 			thrown.expectMessage("Failed to start UnboundSolaceReader");
 			thrown.expectCause(hasProperty("cause", allOf(
 					instanceOf(JCSMPTransportException.class),
 					hasProperty("message", containsString("Error communicating with the router"))
 			)));
-		} catch (ClassNotFoundException ignored) {}
+		}
 
 		testPipeline.apply(read);
 		testPipeline.run();
@@ -243,18 +243,16 @@ public class SolaceIOIT extends ITBase {
 
 		thrown.expect(RuntimeException.class);
 
-		try {
-			// For whatever reason Google Dataflow isn't returning nested Exceptions
-			// Restricting these assertions to only DirectRunner
-			Class.forName("org.apache.beam.runners.direct.DirectRunner");
-
+		// For whatever reason Google Dataflow isn't returning nested Exceptions
+		// Restricting these assertions to only DirectRunner
+		if (!pipelineOptions.getRunner().equals(TestDataflowRunner.class)) {
 			thrown.expectCause(instanceOf(IOException.class));
 			thrown.expectMessage("Failed to start UnboundSolaceReader");
 			thrown.expectCause(hasProperty("cause", allOf(
 					instanceOf(JCSMPErrorResponseException.class),
 					hasProperty("message", containsString("Unknown Queue"))
 			)));
-		} catch (ClassNotFoundException ignored) {}
+		}
 
 		testPipeline.apply(read);
 		testPipeline.run();
@@ -324,6 +322,12 @@ public class SolaceIOIT extends ITBase {
 		}
 
 		SCHEDULER.schedule(() -> {
+			waitForPipelineToStart();
+
+			for (String queueName : testQueues) {
+				waitForAllMessagesToBeReceived(queueName);
+			}
+
 			try {
 				sempOps.disconnectClients(testJcsmpProperties,
 						Collections.singleton((String) jcsmpSession.getProperty(JCSMPProperties.CLIENT_NAME)));
@@ -379,7 +383,11 @@ public class SolaceIOIT extends ITBase {
 		}
 
 		SCHEDULER.schedule(() -> {
+			waitForPipelineToStart();
+
 			for (String queueName : testQueues) {
+				waitForAllMessagesToBeReceived(queueName);
+
 				try {
 					sempOps.shutdownQueueEgress(testJcsmpProperties, queueName);
 					Thread.sleep(5000);
@@ -486,5 +494,54 @@ public class SolaceIOIT extends ITBase {
 		BytesXMLMessage msg = JCSMPFactory.onlyInstance().createMessage(BytesXMLMessage.class);
 		msg.writeAttachment(payload.getBytes(StandardCharsets.UTF_8));
 		return msg;
+	}
+
+	private void waitForPipelineToStart() {
+		if (pipelineOptions.getRunner().equals(TestDataflowRunner.class)) {
+			TestDataflowPipelineOptions dataflowOptions = pipelineOptions.as(TestDataflowPipelineOptions.class);
+			try {
+				DataflowUtils.waitForJobToStart(dataflowOptions);
+			} catch (Exception e) {
+				LOG.error(String.format("Failed to retrieve Google Dataflow job %s", dataflowOptions.getJobName()), e);
+				throw new RuntimeException(e);
+			}
+		}
+	}
+
+	private void waitForAllMessagesToBeReceived(String queueName) {
+		try {
+			long retryInterval = TimeUnit.SECONDS.toMillis(5);
+			long maxAttempts = TimeUnit.MINUTES.toMillis(5) / retryInterval;
+			boolean debounce = false;
+
+			for (int attempts = 0; attempts < maxAttempts; attempts++) {
+				long unackedMsgCount = sempOps.getQueueUnackedMessageCount(testJcsmpProperties, queueName);
+				long msgCount = sempOps.getQueueMessageCount(testJcsmpProperties, queueName);
+
+				if (unackedMsgCount >= msgCount) {
+					if (debounce) {
+						break;
+					} else {
+						debounce = true;
+					}
+				} else {
+					LOG.info(String.format("Waiting for %s of %s enqueued messages to be sent from queue %s",
+							msgCount - unackedMsgCount, msgCount, queueName));
+
+					debounce = false;
+					Thread.sleep(retryInterval);
+
+					if (attempts >= maxAttempts - 1) {
+						String msg = String.format("Timed out while waiting for all messages to be sent from queue %s",
+								queueName);
+						LOG.error(msg);
+						throw new TimeoutException(msg);
+					}
+				}
+			}
+		} catch (Exception e) {
+			LOG.error(String.format("Failed to get stats from queue %s", queueName), e);
+			throw new RuntimeException(e);
+		}
 	}
 }
