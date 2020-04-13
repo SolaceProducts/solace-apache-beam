@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public class SempOperationUtils {
@@ -167,20 +168,22 @@ public class SempOperationUtils {
 	public void waitForQueuesEmpty(JCSMPProperties jcsmpProperties, Collection<String> queues, long waitSecs)
 			throws InterruptedException, com.solace.semp.v2.monitor.ApiException {
 		for (String queueName : new HashSet<>(queues)) {
-			boolean isEmpty = false;
-			long sleep = 5000;
+			long wait = TimeUnit.SECONDS.toMillis(waitSecs);
+			long sleep = Math.min(TimeUnit.SECONDS.toMillis(5), wait);
 
-			for (int i = 0; !isEmpty && i < (waitSecs * 1000) / sleep; i++) {
-				LOG.info(String.format("Waiting for queue %s to become empty", queueName));
-				isEmpty = isQueueEmpty(jcsmpProperties, queueName);
-				Thread.sleep(sleep);
+			while (!isQueueEmpty(jcsmpProperties, queueName)) {
+				if (wait > 0) {
+					LOG.info(String.format("Waiting for queue %s to become empty - %s sec remaining",
+							queueName, TimeUnit.MILLISECONDS.toSeconds(wait)));
+					Thread.sleep(sleep);
+					wait -= sleep;
+				} else {
+					throw new IllegalStateException(String.format("Queue %s was not empty, found %s messages",
+							queueName, getQueueMessageCount(jcsmpProperties, queueName)));
+				}
 			}
 
-			if (!isEmpty) {
-				throw new IllegalStateException(String.format("Queue %s was not empty", queueName));
-			} else {
-				LOG.info(String.format("Queue %s became empty", queueName));
-			}
+			LOG.info(String.format("Queue %s became empty", queueName));
 		}
 	}
 }

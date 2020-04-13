@@ -25,7 +25,6 @@ import org.junit.Rule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.Assert.fail;
@@ -45,7 +44,7 @@ public abstract class ITBase {
 	private static String mgmtHost;
 	private static String mgmtUsername;
 	private static String mgmtPassword;
-	static final String DATAFLOW_REGION_US_CENTRAL1 = "us-central1";
+	private static final String DATAFLOW_REGION_US_CENTRAL1 = "us-central1";
 	private static final ObjectMapper MAPPER = new ObjectMapper();
 
 	@Rule
@@ -57,13 +56,34 @@ public abstract class ITBase {
 	}
 
 	@BeforeClass
-	public static void fetchPubSubConnectionDetails() {
+	public static void initTestProperties() {
 		PipelineOptionsFactory.register(SolaceIOTestPipelineOptions.class);
 		sharedPipelineOptions = TestPipeline.testingPipelineOptions();
 
+		if (ITEnv.Test.RUNNER.isPresent()) {
+			String runnerName = ITEnv.Test.RUNNER.get();
+			if (runnerName.equals(TestDataflowRunner.class.getSimpleName())) {
+				sharedPipelineOptions.setRunner(TestDataflowRunner.class);
+			} else if (runnerName.equals(DirectRunner.class.getSimpleName())) {
+				sharedPipelineOptions.setRunner(DirectRunner.class);
+			} else {
+				fail(String.format("Runner %s is not supported. Please provide one of: [%s]",
+						sharedPipelineOptions.getRunner().getSimpleName(),
+						String.join(", ",
+								TestDataflowRunner.class.getSimpleName(),
+								DirectRunner.class.getSimpleName())));
+			}
+		}
+
 		if (sharedPipelineOptions.getRunner().equals(TestDataflowRunner.class)) {
-			LOG.info(String.format("Setting fixed pipeline options for %s", TestDataflowRunner.class.getSimpleName()));
 			TestDataflowPipelineOptions dataflowOps = sharedPipelineOptions.as(TestDataflowPipelineOptions.class);
+
+			LOG.info(String.format("Extracting env to pipeline options for %s", TestDataflowRunner.class.getSimpleName()));
+			dataflowOps.setProject(ITEnv.Dataflow.PROJECT.get(dataflowOps.getProject()));
+			dataflowOps.setTempRoot(ITEnv.Dataflow.TMP_ROOT.get(dataflowOps.getTempRoot()));
+			dataflowOps.setGcpTempLocation(dataflowOps.getTempRoot());
+
+			LOG.info(String.format("Setting fixed pipeline options for %s", TestDataflowRunner.class.getSimpleName()));
 			dataflowOps.setAutoscalingAlgorithm(DataflowPipelineWorkerPoolOptions.AutoscalingAlgorithmType.THROUGHPUT_BASED);
 			dataflowOps.setNumWorkers(2);
 			dataflowOps.setMaxNumWorkers(5);
@@ -82,22 +102,19 @@ public abstract class ITBase {
 		SolaceIOTestPipelineOptions solaceOps = sharedPipelineOptions.as(SolaceIOTestPipelineOptions.class);
 		PipelineOptionsValidator.validate(SolaceIOTestPipelineOptions.class, solaceOps);
 
-		String solaceHostName = Optional.ofNullable(System.getenv("SOLACE_HOST")).orElse(solaceOps.getSolaceHostName());
+		String solaceHostName = ITEnv.Solace.HOST.get(solaceOps.getSolaceHostName());
 
 		detectedJcsmpProperties = new JCSMPProperties();
-		detectedJcsmpProperties.setProperty(JCSMPProperties.VPN_NAME,
-				Optional.ofNullable(System.getenv("SOLACE_VPN_NAME")).orElse(solaceOps.getSolaceVpnName()));
+		detectedJcsmpProperties.setProperty(JCSMPProperties.VPN_NAME, ITEnv.Solace.VPN.get(solaceOps.getSolaceVpnName()));
 		detectedJcsmpProperties.setProperty(JCSMPProperties.HOST, String.format("tcp://%s:%s", solaceHostName,
-				Optional.ofNullable(System.getenv("SOLACE_SMF_PORT")).orElse(String.valueOf(solaceOps.getSolaceSmfPort()))));
-		detectedJcsmpProperties.setProperty(JCSMPProperties.USERNAME,
-				Optional.ofNullable(System.getenv("SOLACE_USERNAME")).orElse(solaceOps.getSolaceUsername()));
-		detectedJcsmpProperties.setProperty(JCSMPProperties.PASSWORD,
-				Optional.ofNullable(System.getenv("SOLACE_PASSWORD")).orElse(solaceOps.getSolacePassword()));
+				ITEnv.Solace.SMF_PORT.get(String.valueOf(solaceOps.getSolaceSmfPort()))));
+		detectedJcsmpProperties.setProperty(JCSMPProperties.USERNAME, ITEnv.Solace.USERNAME.get(solaceOps.getSolaceUsername()));
+		detectedJcsmpProperties.setProperty(JCSMPProperties.PASSWORD, ITEnv.Solace.PASSWORD.get(solaceOps.getSolacePassword()));
 
 		mgmtHost = String.format("https://%s:%s", solaceHostName,
-				Optional.ofNullable(System.getenv("SOLACE_MGMT_PORT")).orElse(String.valueOf(solaceOps.getSolaceMgmtPort())));
-		mgmtUsername = Optional.ofNullable(System.getenv("SOLACE_MGMT_USERNAME")).orElse(solaceOps.getSolaceMgmtUsername());
-		mgmtPassword = Optional.ofNullable(System.getenv("SOLACE_MGMT_PASSWORD")).orElse(solaceOps.getSolaceMgmtPassword());
+				ITEnv.Solace.MGMT_PORT.get(String.valueOf(solaceOps.getSolaceMgmtPort())));
+		mgmtUsername = ITEnv.Solace.MGMT_USERNAME.get(solaceOps.getSolaceMgmtUsername());
+		mgmtPassword = ITEnv.Solace.MGMT_PASSWORD.get(solaceOps.getSolaceMgmtPassword());
 	}
 
 	@Before

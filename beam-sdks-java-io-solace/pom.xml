@@ -71,6 +71,18 @@
 			<scope>test</scope>
 		</dependency>
 
+		<!--
+			beam-sdks-java-io-google-cloud-platform depends on an ancient version of google-api-services-storage,
+			and google-cloud-storage also depends on google-api-services-storage.
+			For test integrity, GC clients must be compatible with whatever version of the API that the product uses.
+		-->
+		<dependency>
+			<groupId>com.google.cloud</groupId>
+			<artifactId>google-cloud-storage</artifactId>
+			<version>1.78.0</version>
+			<scope>test</scope>
+		</dependency>
+
 		<!-- Makes the DirectRunner available when running pipeline IT tests. -->
 		<dependency>
 			<groupId>org.apache.beam</groupId>
@@ -200,10 +212,10 @@
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-failsafe-plugin</artifactId>
-<!--						<configuration>-->
-<!--							<parallel>methods</parallel>-->
-<!--							<threadCount>4</threadCount>-->
-<!--						</configuration>-->
+						<configuration>
+							<parallel>methods</parallel>
+							<threadCount>4</threadCount>
+						</configuration>
 					</plugin>
 				</plugins>
 			</build>

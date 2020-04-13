@@ -1,4 +1,4 @@
-package com.solace.apache.beam;
+package com.solace.apache.beam.test.util;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
@@ -22,11 +22,14 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertNotNull;
 
-public class DataflowUtils {
-	private static final Logger LOG = LoggerFactory.getLogger(DataflowUtils.class);
+public final class GoogleDataflowUtil extends GoogleUtilBase {
+	private static final Logger LOG = LoggerFactory.getLogger(GoogleDataflowUtil.class);
+	private static Dataflow dataflowService;
+	private static final String JOB_STATE_RUNNING = "JOB_STATE_RUNNING";
+	private static final String JOB_STATE_DRAINED = "JOB_STATE_DRAINED";
+	private static final String JOB_STATE_DRAINING = "JOB_STATE_DRAINING";
 
-	private DataflowUtils() {
-	}
+	private GoogleDataflowUtil() {}
 
 	public static Job getJob(DataflowPipelineOptions options)
 			throws IOException, GeneralSecurityException, InterruptedException {
@@ -38,13 +41,14 @@ public class DataflowUtils {
 		for (int attempt = 0; attempt < 60; attempt++) {
 			LOG.info(String.format("Getting Google Dataflow info for job name %s of project ID %s in region %s",
 					jobName, projectId, region));
-			String token;
+			String pageToken = null;
 			do {
-				ListJobsResponse response = getDataflowService()
+				ListJobsResponse response = getService()
 						.projects()
 						.locations()
 						.jobs()
 						.list(projectId, region)
+						.setPageToken(pageToken)
 						.execute();
 
 				for (Job job : response.getJobs()) {
@@ -54,13 +58,37 @@ public class DataflowUtils {
 					}
 				}
 
-				token = response.getNextPageToken();
-			} while (token != null);
+				pageToken = response.getNextPageToken();
+			} while (pageToken != null);
 
 			Thread.sleep(10000);
 		}
 
 		throw new IOException(String.format("Job %s was not found for project %s", jobName, projectId));
+	}
+
+	public static void drainJob(DataflowPipelineOptions options) throws InterruptedException, GeneralSecurityException, IOException {
+		Job job = getJob(options);
+		getService()
+				.projects()
+				.jobs()
+				.update(job.getProjectId(), job.getId(), new Job().setRequestedState(JOB_STATE_DRAINED))
+				.execute();
+
+		String state = JOB_STATE_DRAINING;
+		for (long wait = TimeUnit.MINUTES.toMillis(10), sleep = TimeUnit.SECONDS.toMillis(10);
+			 (state.equals(JOB_STATE_DRAINING) || state.equals(JOB_STATE_RUNNING)) && wait > 0; wait -= sleep) {
+			LOG.info(String.format("Waiting for job %s to be drained - %s sec remaining",
+					job.getName(), TimeUnit.MILLISECONDS.toSeconds(wait)));
+			sleep = Math.min(sleep, wait);
+			Thread.sleep(sleep);
+			state = getJob(options).getCurrentState();
+		}
+
+		if (!state.equals(JOB_STATE_DRAINED)) {
+			throw new IllegalStateException(String.format("job %s didn't reach state %s, current state is %s",
+					job.getName(), JOB_STATE_DRAINED, state));
+		}
 	}
 
 	public static void waitForJobToStart(DataflowPipelineOptions options) throws InterruptedException, GeneralSecurityException, IOException {
@@ -98,45 +126,49 @@ public class DataflowUtils {
 
 	public static JobMessage findJobMessage(String projectId, String jobId, String region, String substring)
 			throws IOException, GeneralSecurityException {
-		Dataflow.Projects.Locations.Jobs.Messages.List request = getDataflowService()
-				.projects()
-				.locations()
-				.jobs()
-				.messages()
-				.list(projectId, region, jobId);
-
-		ListJobMessagesResponse response;
+		String pageToken = null;
 		JobMessage matchedMessage;
 		do {
-			response = request.execute();
+			ListJobMessagesResponse response = getService()
+					.projects()
+					.locations()
+					.jobs()
+					.messages()
+					.list(projectId, region, jobId)
+					.setPageToken(pageToken)
+					.execute();
 			matchedMessage = response.getJobMessages()
 					.stream()
 					.filter(m -> m.getMessageText().toLowerCase().contains(substring.toLowerCase()))
 					.findAny()
 					.orElse(null);
-		} while (matchedMessage == null && response.getNextPageToken() != null);
+			pageToken = response.getNextPageToken();
+		} while (matchedMessage == null && pageToken != null);
 		return matchedMessage;
 	}
 
 	public static JobMetrics getJobMetrics(String projectId, String jobId) throws IOException, GeneralSecurityException {
-		return getDataflowService()
+		return getService()
 				.projects()
 				.jobs()
 				.getMetrics(projectId, jobId)
 				.execute();
 	}
 
-	private static Dataflow getDataflowService() throws IOException, GeneralSecurityException {
-		GoogleCredential credentials = GoogleCredential.getApplicationDefault();
+	private static Dataflow getService() throws IOException, GeneralSecurityException {
+		if (dataflowService == null) {
+			GoogleCredential credentials = GoogleCredential.getApplicationDefault();
 
-		if (credentials.createScopedRequired()) {
-			credentials = credentials.createScoped(Collections.singletonList("https://www.googleapis.com/auth/cloud-platform"));
+			if (credentials.createScopedRequired()) {
+				credentials = credentials.createScoped(Collections.singletonList(GOOGLE_AUTH_CLOUD_URL));
+			}
+
+			HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
+			JsonFactory jsonFactory = JacksonFactory.getDefaultInstance();
+			dataflowService = new Dataflow.Builder(httpTransport, jsonFactory, credentials)
+					.setApplicationName("Google Cloud Platform Sample")
+					.build();
 		}
-
-		HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-		JsonFactory jsonFactory = JacksonFactory.getDefaultInstance();
-		return new Dataflow.Builder(httpTransport, jsonFactory, credentials)
-				.setApplicationName("Google Cloud Platform Sample")
-				.build();
+		return dataflowService;
 	}
 }

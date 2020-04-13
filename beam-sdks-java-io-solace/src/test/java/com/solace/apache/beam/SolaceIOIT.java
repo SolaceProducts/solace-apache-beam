@@ -2,6 +2,7 @@ package com.solace.apache.beam;
 
 import com.solace.apache.beam.test.fn.ExtractSolacePayloadFn;
 import com.solace.apache.beam.test.transform.CountMessagesPTransform;
+import com.solace.apache.beam.test.util.GoogleDataflowUtil;
 import com.solace.semp.v2.action.ApiException;
 import com.solace.semp.v2.config.model.MsgVpnQueue;
 import com.solacesystems.jcsmp.BytesXMLMessage;
@@ -95,13 +96,13 @@ public class SolaceIOIT extends ITBase {
 	public void testBasic() throws Exception {
 		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,
 				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
-				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
+				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getNumUniqueQueues());
 
 		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
 		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
 
 		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
-		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
+		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getNumUniqueQueues());
 
 		testPipeline.run();
 		sempOps.waitForQueuesEmpty(testJcsmpProperties, testQueues, 30);
@@ -113,13 +114,13 @@ public class SolaceIOIT extends ITBase {
 
 		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,
 				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
-				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
+				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getNumUniqueQueues());
 
 		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
 		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
 
 		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
-		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
+		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getNumUniqueQueues());
 
 		testPipeline.run();
 		sempOps.waitForQueuesEmpty(testJcsmpProperties, testQueues, 30);
@@ -131,13 +132,13 @@ public class SolaceIOIT extends ITBase {
 
 		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,
 				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
-				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
+				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getNumUniqueQueues());
 
 		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
 		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
 
 		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
-		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
+		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getNumUniqueQueues());
 
 		testPipeline.run();
 		sempOps.waitForQueuesEmpty(testJcsmpProperties, testQueues, 30);
@@ -150,13 +151,13 @@ public class SolaceIOIT extends ITBase {
 
 		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,
 				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
-				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
+				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getNumUniqueQueues());
 
 		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
 		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
 
 		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
-		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
+		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getNumUniqueQueues());
 
 		testPipeline.run();
 		sempOps.waitForQueuesEmpty(testJcsmpProperties, testQueues, 30);
@@ -170,13 +171,13 @@ public class SolaceIOIT extends ITBase {
 
 		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,
 				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
-				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
+				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getNumUniqueQueues());
 
 		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
 		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
 
 		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
-		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
+		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getNumUniqueQueues());
 
 		testPipeline.run();
 		sempOps.waitForQueuesEmpty(testJcsmpProperties, testQueues, 30);
@@ -195,13 +196,13 @@ public class SolaceIOIT extends ITBase {
 
 		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,
 				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
-				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
+				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getNumUniqueQueues());
 
 		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
 		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
 
 		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
-		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
+		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getNumUniqueQueues());
 
 		testPipeline.run();
 		sempOps.waitForQueuesEmpty(testJcsmpProperties, testQueues, 30);
@@ -289,13 +290,13 @@ public class SolaceIOIT extends ITBase {
 		LOG.info("Creating pipeline...");
 		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,
 				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
-				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
+				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getNumUniqueQueues());
 
 		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
 		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
 
 		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
-		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getUniqueTestQueuesSize());
+		PAssert.that(counts).containsInAnyOrder((long) NUM_MSGS_PER_QUEUE * getNumUniqueQueues());
 
 		testPipeline.run();
 		sempOps.waitForQueuesEmpty(testJcsmpProperties, testQueues, 30);
@@ -354,13 +355,13 @@ public class SolaceIOIT extends ITBase {
 				.withMaxReadTime(Duration.standardMinutes(3)) // Timeout in case something breaks in a thread
 
 				// Inflight messages will be re-sent due to reconnect
-				.withMaxNumRecords((2 * numMsgsPerQueue - 1) * getUniqueTestQueuesSize());
+				.withMaxNumRecords((2 * numMsgsPerQueue - 1) * getNumUniqueQueues());
 
 		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
 		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
 
 		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
-		PAssert.that(counts).containsInAnyOrder((long) (2 * numMsgsPerQueue - 1) * getUniqueTestQueuesSize());
+		PAssert.that(counts).containsInAnyOrder((long) (2 * numMsgsPerQueue - 1) * getNumUniqueQueues());
 
 		testPipeline.run();
 		sempOps.waitForQueuesEmpty(testJcsmpProperties, testQueues, 30);
@@ -428,13 +429,13 @@ public class SolaceIOIT extends ITBase {
 				.withMaxReadTime(Duration.standardMinutes(3)) // Timeout in case something breaks in a thread
 
 				// Inflight messages will be re-sent due to reconnect
-				.withMaxNumRecords((2 * NUM_MSGS_PER_QUEUE - 1) * getUniqueTestQueuesSize());
+				.withMaxNumRecords((2 * NUM_MSGS_PER_QUEUE - 1) * getNumUniqueQueues());
 
 		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
 		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
 
 		PAssert.that(messagePayloads).containsInAnyOrder(expectedMsgPayloads);
-		PAssert.that(counts).containsInAnyOrder((long) (2 * NUM_MSGS_PER_QUEUE - 1) * getUniqueTestQueuesSize());
+		PAssert.that(counts).containsInAnyOrder((long) (2 * NUM_MSGS_PER_QUEUE - 1) * getNumUniqueQueues());
 
 		testPipeline.run();
 		sempOps.waitForQueuesEmpty(testJcsmpProperties, testQueues, 30);
@@ -461,7 +462,7 @@ public class SolaceIOIT extends ITBase {
 		expectedMsgPayloads = new ArrayList<>();
 	}
 
-	private int getUniqueTestQueuesSize() {
+	private int getNumUniqueQueues() {
 		return new HashSet<>(testQueues).size();
 	}
 
@@ -500,7 +501,7 @@ public class SolaceIOIT extends ITBase {
 		if (pipelineOptions.getRunner().equals(TestDataflowRunner.class)) {
 			TestDataflowPipelineOptions dataflowOptions = pipelineOptions.as(TestDataflowPipelineOptions.class);
 			try {
-				DataflowUtils.waitForJobToStart(dataflowOptions);
+				GoogleDataflowUtil.waitForJobToStart(dataflowOptions);
 			} catch (Exception e) {
 				LOG.error(String.format("Failed to retrieve Google Dataflow job %s", dataflowOptions.getJobName()), e);
 				throw new RuntimeException(e);
