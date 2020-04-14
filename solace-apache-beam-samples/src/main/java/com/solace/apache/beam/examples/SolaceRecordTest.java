@@ -17,17 +17,15 @@
  */
 package com.solace.apache.beam.examples;
 
-import java.util.Arrays;
-import java.util.List;
-
+import com.solace.apache.beam.SolaceIO;
+import com.solace.apache.beam.examples.common.SolaceTextRecord;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
-import com.solace.apache.beam.SolaceIO;
-import com.solace.apache.beam.examples.common.SolaceTextRecord;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -39,6 +37,9 @@ import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * An example that counts words in text, and can run over either unbounded or bounded input
@@ -119,13 +120,13 @@ public class SolaceRecordTest {
 
 		void setSql(String value);
 
-		@Description("Enable reading sender timestamp to deturmine freashness of data")
+		@Description("Enable reading sender timestamp to determine freshness of data")
 		@Default.Boolean(false)
 		boolean getSts();
 
 		void setSts(boolean value);
 
-		@Description("Enable reading sender MessageId to deturmine duplication of data")
+		@Description("Enable reading sender sequence number to determine duplication of data")
 		@Default.Boolean(false)
 		boolean getSmi();
 
@@ -156,14 +157,22 @@ public class SolaceRecordTest {
 		 * Concept #1: the Beam SDK lets us run the same pipeline with either a bounded or
 		 * unbounded input source.
 		 */
-		PCollection<SolaceTextRecord> input =
-				pipeline
-						.apply(SolaceIO.read(jcsmpProperties, queues, SolaceTextRecord.getCoder(), SolaceTextRecord.getMapper())
-								.withUseSenderTimestamp(options.getSts())
-								.withUseSenderMessageId(options.getSmi())
-								.withAdvanceTimeoutInMillis(options.getTimeout()));
+		PCollection<SolaceTextRecord> input = pipeline
+				.apply(SolaceIO.read(jcsmpProperties, queues, SolaceTextRecord.getCoder(), SolaceTextRecord.getMapper())
+						.withUseSenderTimestamp(options.getSts())
+						.withAdvanceTimeoutInMillis(options.getTimeout()));
 
-		PCollection<String> next = input.apply(ParDo.of(new DoFn<SolaceTextRecord, String>() {
+		/*
+		 * The "sender sequence number" and "message ID" properties are unreliable for detecting message duplicates.
+		 * Using it in production can result in message loss.
+		 * We're just using it here because its convenient for basic testing.
+		 *
+		 * We leave it up to you to find a post-processing solution for de-duplication.
+		 */
+		PCollection<SolaceTextRecord> deduppedInput = input.apply(Distinct
+				.withRepresentativeValueFn(m -> options.getSmi() ? m.getSenderId() : m.getMessageId()));
+
+		PCollection<String> payloads = deduppedInput.apply(ParDo.of(new DoFn<SolaceTextRecord, String>() {
 			@ProcessElement
 			public void processElement(@Element SolaceTextRecord record, OutputReceiver<String> receiver) {
 				receiver.output(record.getPayload());
@@ -171,7 +180,7 @@ public class SolaceRecordTest {
 			}
 		}));
 
-		PCollection<String> windowedWords = next.apply(
+		PCollection<String> windowedWords = payloads.apply(
 				Window.<String>into(FixedWindows.of(Duration.standardSeconds(4)))
 						.triggering(AfterWatermark.pastEndOfWindow())
 						.withAllowedLateness(Duration.standardSeconds(1))

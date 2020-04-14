@@ -115,17 +115,11 @@ public class WindowedWordCountSolace {
 
 		void setSql(String value);
 
-		@Description("Enable reading sender timestamp to deturmine freashness of data")
+		@Description("Enable reading sender timestamp to determine freshness of data")
 		@Default.Boolean(false)
 		boolean getSts();
 
 		void setSts(boolean value);
-
-		@Description("Enable reading sender MessageId to deturmine duplication of data")
-		@Default.Boolean(false)
-		boolean getSmi();
-
-		void setSmi(boolean value);
 
 		@Description("The timeout in milliseconds while try to receive a messages from Solace broker")
 		@Default.Integer(100)
@@ -154,10 +148,12 @@ public class WindowedWordCountSolace {
 		 */
 		PCollection<String> input =
 				pipeline
-						/* Read from the Solace JMS Server. */
+						/*
+						 * Read from the Solace JMS Server.
+						 * Reading the message as a String isn't recommended since post-deduplication is required.
+						 */
 						.apply(SolaceIO.read(jcsmpProperties, queues, StringUtf8Coder.of(), new StringMessageMapper())
 								.withUseSenderTimestamp(options.getSts())
-								.withUseSenderMessageId(options.getSmi())
 								.withAdvanceTimeoutInMillis(options.getTimeout()));
 
 		/*
@@ -167,7 +163,7 @@ public class WindowedWordCountSolace {
 		 * available (e.g., sliding windows).
 		 */
 		PCollection<String> windowedWords =
-				input.apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(10))));
+				input.apply(Window.into(FixedWindows.of(Duration.standardSeconds(10))));
 
 		/*
 		 * Concept #4: Re-use our existing CountWords transform that does not have knowledge of
@@ -193,8 +189,7 @@ public class WindowedWordCountSolace {
 		}
 	}
 
-	public static void main(String[] args) throws Exception {
-//    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
+	public static void main(String[] args) {
 		Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
 
 		try {
