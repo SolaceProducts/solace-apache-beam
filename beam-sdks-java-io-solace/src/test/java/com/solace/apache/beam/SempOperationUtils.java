@@ -15,7 +15,12 @@ import com.solacesystems.jcsmp.JCSMPProperties;
 import com.solacesystems.jcsmp.JCSMPSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.xml.sax.SAXException;
 
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.TransformerException;
+import javax.xml.xpath.XPathExpressionException;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -141,23 +146,22 @@ public class SempOperationUtils {
 		}
 	}
 
-	public long getQueueMessageCount(JCSMPProperties jcsmpProperties, String queueName) throws com.solace.semp.v2.monitor.ApiException {
+	public long getQueueMessageCount(JCSMPProperties jcsmpProperties, String queueName)
+			throws SAXException, TransformerException, IOException, XPathExpressionException, JCSMPException, ParserConfigurationException {
 		String msgVpn = jcsmpProperties.getStringProperty(JCSMPProperties.VPN_NAME);
-		long count = 0;
-		String cursor = null;
-		do {
-			com.solace.semp.v2.monitor.model.MsgVpnQueueMsgsResponse response = queueMonitorApi
-					.getMsgVpnQueueMsgs(msgVpn, queueName, Integer.MAX_VALUE, cursor, null, null);
-			count += response.getData().size();
-			cursor = response.getMeta() != null && response.getMeta().getPaging() != null ?
-					response.getMeta().getPaging().getCursorQuery() : null;
-		} while (cursor != null);
-		return count;
+		String request = String.format("<rpc><show><queue><name>%s</name><vpn-name>%s</vpn-name></queue></show></rpc>", queueName, msgVpn);
+		String searchString = "/rpc-reply/rpc/show/queue/queues/queue/info/num-messages-spooled";
+		return Long.parseLong(msgBusSempUtil.queryRouter(request, searchString));
 	}
 
 	public long getQueueUnackedMessageCount(JCSMPProperties jcsmpProperties, String queueName) throws com.solace.semp.v2.monitor.ApiException {
 		String msgVpn = jcsmpProperties.getStringProperty(JCSMPProperties.VPN_NAME);
 		return queueMonitorApi.getMsgVpnQueue(msgVpn, queueName, null).getData().getTxUnackedMsgCount();
+	}
+
+	public long getQueueMaxDeliveredUnackedMsgsPerFlow(JCSMPProperties jcsmpProperties, String queueName) throws com.solace.semp.v2.monitor.ApiException {
+		String msgVpn = jcsmpProperties.getStringProperty(JCSMPProperties.VPN_NAME);
+		return queueMonitorApi.getMsgVpnQueue(msgVpn, queueName, null).getData().getMaxDeliveredUnackedMsgsPerFlow();
 	}
 
 	public boolean isQueueEmpty(JCSMPProperties jcsmpProperties, String queueName) throws com.solace.semp.v2.monitor.ApiException {
@@ -166,7 +170,9 @@ public class SempOperationUtils {
 	}
 
 	public void waitForQueuesEmpty(JCSMPProperties jcsmpProperties, Collection<String> queues, long waitSecs)
-			throws InterruptedException, com.solace.semp.v2.monitor.ApiException {
+			throws InterruptedException, com.solace.semp.v2.monitor.ApiException, ParserConfigurationException,
+			TransformerException, IOException, XPathExpressionException, JCSMPException, SAXException {
+
 		for (String queueName : new HashSet<>(queues)) {
 			long wait = TimeUnit.SECONDS.toMillis(waitSecs);
 			long sleep = Math.min(TimeUnit.SECONDS.toMillis(5), wait);

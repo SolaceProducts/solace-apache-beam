@@ -1,5 +1,6 @@
 package com.solace.apache.beam;
 
+import com.google.api.services.dataflow.model.Job;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.solace.apache.beam.test.fn.ExtractSolacePayloadFn;
@@ -17,6 +18,7 @@ import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.TestDataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.TestDataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -123,8 +125,88 @@ public class SolaceIOLifecycleDataflowIT extends ITBase {
 	}
 
 	@Test
-	public void testUpdate() {
-		//TODO
+	public void testUpdate() throws Exception {
+		String outputGSUrlPrefix = generateOutputGSUrlPrefix();
+		int numMsgsPerQueue = 100000;
+		long defaultMaxDeliveredUnackedMsgs = sempOps
+				.getQueueMaxDeliveredUnackedMsgsPerFlow(testJcsmpProperties, testQueues.get(0));
+
+		for (String queueName : testQueues) {
+			long maxDeliveredUnackedMsgs = 100;
+			LOG.info(String.format("Staggering message consumption for queue %s to %s max delivered unacked messages",
+					queueName, maxDeliveredUnackedMsgs));
+			sempOps.updateQueue(testJcsmpProperties, queueName,
+					new MsgVpnQueue().maxDeliveredUnackedMsgsPerFlow(maxDeliveredUnackedMsgs));
+
+			populateQueue(queueName, numMsgsPerQueue);
+		}
+
+		PipelineResult pipelineResult0 = null;
+		PipelineResult pipelineResult1 = null;
+		try {
+			Pipeline initPipeline = Pipeline.create(pipelineOptions);
+
+			initPipeline.apply("solace", SolaceIO.read(testJcsmpProperties, testQueues,
+							SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper()))
+					.apply("windowing", createIncrementalGlobalWindow(Duration.standardMinutes(5)))
+					.apply("extract", ParDo.of(new ExtractSolacePayloadFn()))
+					.apply("writeFile", new FileWriterPTransform(outputGSUrlPrefix));
+
+			pipelineResult0 = initPipeline.run();
+			GoogleDataflowUtil.waitForJobToStart(pipelineOptions.as(DataflowPipelineOptions.class));
+
+			for (String queueName : testQueues) {
+				long wait = TimeUnit.MINUTES.toMillis(1);
+				long sleep = TimeUnit.SECONDS.toMillis(1);
+				while (sempOps.getQueueMessageCount(testJcsmpProperties, queueName) >= numMsgsPerQueue) {
+					if (wait > 0) {
+						LOG.info(String.format("Waiting for queue %s to have less than %s messages - %s sec remaining",
+								queueName, numMsgsPerQueue, TimeUnit.MILLISECONDS.toSeconds(wait)));
+						Thread.sleep(sleep);
+						wait -= sleep;
+					} else {
+						fail(String.format("Queue %s didn't consume enough messages", queueName));
+					}
+				}
+
+				assertThat(String.format("Queue %s was emptied before job %s could be updated, " +
+								"consider staggering message consumption rate", queueName, pipelineOptions.getJobName()),
+						sempOps.getQueueMessageCount(testJcsmpProperties, queueName), greaterThan((long) 0));
+			}
+
+			Job jobToUpdate = GoogleDataflowUtil.getJob(pipelineOptions.as(DataflowPipelineOptions.class));
+
+			LOG.info(String.format("Beginning to update pipeline job %s", pipelineOptions.getJobName()));
+			pipelineOptions.as(DataflowPipelineOptions.class).setUpdate(true);
+
+			testPipeline.apply("solace", SolaceIO.read(testJcsmpProperties, testQueues,
+							SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper()))
+					.apply("windowing", createIncrementalGlobalWindow(Duration.standardSeconds(5)))
+					.apply("extract", ParDo.of(new ExtractSolacePayloadFn()))
+					.apply("writeFile", new FileWriterPTransform(outputGSUrlPrefix));
+
+			pipelineResult1 = testPipeline.run();
+			GoogleDataflowUtil.waitForJobToUpdate(jobToUpdate);
+
+			for (String queueName : testQueues) {
+				assertThat(String.format("Queue %s was emptied before job %s could finish updating, " +
+								"consider staggering message consumption rate", queueName, pipelineOptions.getJobName()),
+						sempOps.getQueueMessageCount(testJcsmpProperties, queueName), greaterThan((long) 0));
+				sempOps.updateQueue(testJcsmpProperties, queueName,
+						new MsgVpnQueue().maxDeliveredUnackedMsgsPerFlow(defaultMaxDeliveredUnackedMsgs));
+			}
+
+			sempOps.waitForQueuesEmpty(testJcsmpProperties, testQueues, 120);
+			verifyAllMessagesAreReceivedAndProcessed(outputGSUrlPrefix, numMsgsPerQueue);
+		} finally {
+			if (pipelineResult1 != null) {
+				pipelineResult1.cancel();
+				pipelineResult1.waitUntilFinish();
+			} else if (pipelineResult0 != null) {
+				pipelineResult0.cancel();
+				pipelineResult0.waitUntilFinish();
+			}
+		}
 	}
 
 	@Test
@@ -166,6 +248,10 @@ public class SolaceIOLifecycleDataflowIT extends ITBase {
 						fail(String.format("Queue %s didn't consume enough messages", queueName));
 					}
 				}
+
+				assertThat(String.format("Queue %s was emptied before job %s could be cancelled, " +
+								"consider staggering message consumption rate", queueName, pipelineOptions.getJobName()),
+						sempOps.getQueueMessageCount(testJcsmpProperties, queueName), greaterThan((long) 0));
 			}
 
 			LOG.info(String.format("Cancelling job %s while messages are still in queue",
@@ -214,7 +300,7 @@ public class SolaceIOLifecycleDataflowIT extends ITBase {
 			}
 
 			for (String queueName : testQueues) {
-				long wait = TimeUnit.SECONDS.toMillis(15);
+				long wait = TimeUnit.MINUTES.toMillis(1);
 				long sleep = TimeUnit.SECONDS.toMillis(1);
 				while (sempOps.getQueueMessageCount(testJcsmpProperties, queueName) >= numMsgsPerQueue) {
 					if (wait > 0) {
@@ -226,6 +312,10 @@ public class SolaceIOLifecycleDataflowIT extends ITBase {
 						fail(String.format("Queue %s didn't consume enough messages", queueName));
 					}
 				}
+
+				assertThat(String.format("Queue %s was emptied before job %s could be drained, " +
+								"consider staggering message consumption rate", queueName, pipelineOptions.getJobName()),
+						sempOps.getQueueMessageCount(testJcsmpProperties, queueName), greaterThan((long) 0));
 			}
 
 			LOG.info(String.format("Draining job %s while messages are still in queue",
