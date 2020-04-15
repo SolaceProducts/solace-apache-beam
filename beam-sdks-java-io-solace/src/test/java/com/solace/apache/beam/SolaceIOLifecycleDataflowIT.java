@@ -156,7 +156,7 @@ public class SolaceIOLifecycleDataflowIT extends ITBase {
 			GoogleDataflowUtil.waitForJobToStart(pipelineOptions.as(DataflowPipelineOptions.class));
 
 			for (String queueName : testQueues) {
-				long wait = TimeUnit.MINUTES.toMillis(1);
+				long wait = TimeUnit.MINUTES.toMillis(5);
 				long sleep = TimeUnit.SECONDS.toMillis(1);
 				while (sempOps.getQueueMessageCount(testJcsmpProperties, queueName) >= numMsgsPerQueue) {
 					if (wait > 0) {
@@ -236,7 +236,7 @@ public class SolaceIOLifecycleDataflowIT extends ITBase {
 			}
 
 			for (String queueName : testQueues) {
-				long wait = TimeUnit.SECONDS.toMillis(15);
+				long wait = TimeUnit.MINUTES.toMillis(5);
 				long sleep = TimeUnit.SECONDS.toMillis(1);
 				while (sempOps.getQueueMessageCount(testJcsmpProperties, queueName) >= numMsgsPerQueue) {
 					if (wait > 0) {
@@ -300,7 +300,7 @@ public class SolaceIOLifecycleDataflowIT extends ITBase {
 			}
 
 			for (String queueName : testQueues) {
-				long wait = TimeUnit.MINUTES.toMillis(1);
+				long wait = TimeUnit.MINUTES.toMillis(5);
 				long sleep = TimeUnit.SECONDS.toMillis(1);
 				while (sempOps.getQueueMessageCount(testJcsmpProperties, queueName) >= numMsgsPerQueue) {
 					if (wait > 0) {
