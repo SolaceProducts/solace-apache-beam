@@ -30,8 +30,7 @@ testRecordApp() {
       -pl solace-apache-beam-samples \
       -Dexec.mainClass=com.solace.apache.beam.examples.SolaceRecordTest \
       -Dexec.args="--output=README10.counts --cip=tcp://${SOLACE_HOST}:55555 --cu=${SOLACE_USERNAME} --vpn=${SOLACE_VPN_NAME} --cp=${SOLACE_PASSWORD} --sql=${Q_1}" \
-      2>&1 \
-      | tee output.log &
+      2>&1 | tee output.log &
 
   while [[ ! -s output.log ]] && ! grep -qE 'BUILD SUCCESS|BUILD FAILURE' output.log; do
     echo "$(date) Waiting for compile to complete and runner launch"

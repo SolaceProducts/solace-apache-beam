@@ -30,7 +30,7 @@ public class SolaceTextRecord implements Serializable {
 	private final String replyTo;
 	private final long receiveTimestamp;
 	private final long senderTimestamp;
-	private final String senderId;
+	private final Long sequenceNumber;
 	private final long timeToLive;
 
 	/**
@@ -38,7 +38,7 @@ public class SolaceTextRecord implements Serializable {
 	 */
 	public SolaceTextRecord(String destination, long expiration, long messageId,
 							int priority, boolean redelivered, String replyTo, long receiveTimestamp,
-							long senderTimestamp, String senderId, long timeToLive,
+							long senderTimestamp, Long sequenceNumber, long timeToLive,
 							Map<String, Object> properties, String text) {
 		this.destination = destination;
 		this.expiration = expiration;
@@ -48,7 +48,7 @@ public class SolaceTextRecord implements Serializable {
 		this.replyTo = replyTo;
 		this.receiveTimestamp = receiveTimestamp;
 		this.senderTimestamp = senderTimestamp;
-		this.senderId = senderId;
+		this.sequenceNumber = sequenceNumber;
 		this.timeToLive = timeToLive;
 		this.properties = properties;
 		this.text = text;
@@ -113,8 +113,8 @@ public class SolaceTextRecord implements Serializable {
 	/**
 	 * Return the text record senderId.
 	 */
-	public String getSenderId() {
-		return senderId;
+	public Long getSequenceNumber() {
+		return sequenceNumber;
 	}
 
 	/**
@@ -149,7 +149,7 @@ public class SolaceTextRecord implements Serializable {
 	public int hashCode() {
 		return Objects.hash(destination, expiration, messageId, priority,
 				redelivered, replyTo, receiveTimestamp, senderTimestamp,
-				senderId, timeToLive, properties, text);
+				sequenceNumber, timeToLive, properties, text);
 	}
 
 	@Override
@@ -217,7 +217,7 @@ public class SolaceTextRecord implements Serializable {
 					msg.getReceiveTimestamp(),
 					// 0 means no SenderTimestamp
 					(msg.getSenderTimestamp() != null) ? msg.getSenderTimestamp() : 0,
-					msg.getSenderId(),
+					msg.getSequenceNumber(),
 					msg.getTimeToLive(),
 					properties,
 					msgData);

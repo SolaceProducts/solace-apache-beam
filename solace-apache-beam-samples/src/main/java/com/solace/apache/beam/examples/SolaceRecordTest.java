@@ -17,6 +17,7 @@
  */
 package com.solace.apache.beam.examples;
 
+import com.google.common.primitives.Longs;
 import com.solace.apache.beam.SolaceIO;
 import com.solace.apache.beam.examples.common.SolaceTextRecord;
 import com.solacesystems.jcsmp.JCSMPProperties;
@@ -29,11 +30,11 @@ import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,7 +105,7 @@ public class SolaceRecordTest {
 
 		void setVpn(String value);
 
-		@Description("Client username and optionally VPN name.")
+		@Description("Client username")
 		String getCu();
 
 		void setCu(String value);
@@ -144,6 +145,7 @@ public class SolaceRecordTest {
 	static void runWindowedWordCount(Options options) throws Exception {
 
 		List<String> queues = Arrays.asList(options.getSql().split(","));
+		boolean useSenderMsgId = options.getSmi();
 
 		Pipeline pipeline = Pipeline.create(options);
 
@@ -162,34 +164,32 @@ public class SolaceRecordTest {
 						.withUseSenderTimestamp(options.getSts())
 						.withAdvanceTimeoutInMillis(options.getTimeout()));
 
+		PCollection<SolaceTextRecord> windowedWords = input.apply(
+				Window.<SolaceTextRecord>into(FixedWindows.of(Duration.standardSeconds(4))));
+
 		/*
 		 * The "sender sequence number" and "message ID" properties are unreliable for detecting message duplicates.
 		 * Using it in production can result in message loss.
-		 * We're just using it here because its convenient for basic testing.
+		 * We're just using it here for convenience.
 		 *
 		 * We leave it up to you to find a post-processing solution for de-duplication.
 		 */
-		PCollection<SolaceTextRecord> deduppedInput = input.apply(Distinct
-				.withRepresentativeValueFn(m -> options.getSmi() ? m.getSenderId() : m.getMessageId()));
+		PCollection<SolaceTextRecord> deduppedInput = windowedWords.apply(Distinct
+				.<SolaceTextRecord, byte[]>withRepresentativeValueFn(m ->
+						Longs.toByteArray(useSenderMsgId ? m.getSequenceNumber() : m.getMessageId()))
+				.withRepresentativeType(TypeDescriptor.of(byte[].class))
+		);
 
 		PCollection<String> payloads = deduppedInput.apply(ParDo.of(new DoFn<SolaceTextRecord, String>() {
 			@ProcessElement
 			public void processElement(@Element SolaceTextRecord record, OutputReceiver<String> receiver) {
 				receiver.output(record.getPayload());
-				;
 			}
 		}));
 
-		PCollection<String> windowedWords = payloads.apply(
-				Window.<String>into(FixedWindows.of(Duration.standardSeconds(4)))
-						.triggering(AfterWatermark.pastEndOfWindow())
-						.withAllowedLateness(Duration.standardSeconds(1))
-						.discardingFiredPanes());
+		PCollection<KV<String, Long>> wordCounts = payloads.apply(new WordCount.CountWords());
 
-		PCollection<KV<String, Long>> wordCounts = windowedWords.apply(new WordCount.CountWords());
-
-		wordCounts
-				.apply(MapElements.via(new WordCount.FormatAsTextFn()))
+		wordCounts.apply(MapElements.via(new WordCount.FormatAsTextFn()))
 				.apply(ParDo.of(new DoFn<String, String>() {
 					@ProcessElement
 					public void processElement(@Element String e) {
@@ -205,8 +205,7 @@ public class SolaceRecordTest {
 		}
 	}
 
-	public static void main(String[] args) throws Exception {
-//    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
+	public static void main(String[] args) {
 		Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
 
 		try {
