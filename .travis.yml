@@ -8,17 +8,25 @@ before_install:
 install: true
 
 env:
-  - CI_CLEANUP=ci/tmp/cleanup.sh
+  - CI_CLEANUP=ci/tmp/cleanup.sh GCP_SECRET_FILENAME=gcp-secret.json
+
+before_script:
+  # Get GCP service account credentials
+  - echo $GCP_SECRET | base64 -d > "./${GCP_SECRET_FILENAME}"
+  - export GOOGLE_APPLICATION_CREDENTIALS="${PWD}/${GCP_SECRET_FILENAME}"
+  # Create cleanup script
+  - mkdir -p "${CI_CLEANUP%/*}" && touch "$CI_CLEANUP" && chmod +x "$CI_CLEANUP"
 
 script:
-  - mkdir -p "${CI_CLEANUP%/*}" && touch "$CI_CLEANUP" && chmod +x "$CI_CLEANUP"
   - ci/run-tests.sh
   - mvn clean install -DskipTests
   - ci/run-samples-tests.sh
+
 after_success:
   - echo "Test Success - Branch( $TRAVIS_BRANCH ) Pull Request( $TRAVIS_PULL_REQUEST ) Tag( $TRAVIS_TAG )"
 
 after_script:
   - $CI_CLEANUP
+  - rm "$GCP_SECRET_FILENAME"
   # Need to give some time for output buffer to finish
   - sleep 10
