@@ -22,6 +22,7 @@ public interface SolaceIOTestPipelineOptions extends TestPipelineOptions {
 	void setSolaceSmfPort(Integer value);
 
 	@Description("Client username for Solace PubSub+ broker")
+	@Default.String("default")
 	String getSolaceUsername();
 	void setSolaceUsername(String value);
 
@@ -35,10 +36,12 @@ public interface SolaceIOTestPipelineOptions extends TestPipelineOptions {
 	void setSolaceMgmtPort(Integer value);
 
 	@Description("Management username for Solace PubSub+ broker")
+	@Default.String("admin")
 	String getSolaceMgmtUsername();
 	void setSolaceMgmtUsername(String value);
 
 	@Description("Management password for Solace PubSub+ broker")
+	@Default.String("admin")
 	String getSolaceMgmtPassword();
 	void setSolaceMgmtPassword(String value);
 }

@@ -31,16 +31,15 @@ exit 1
   exit 1
 fi
 
+BEAM_RUNNER_TYPE="${1:-direct}"
+
 echo
-echo 'RUN TESTS'
+echo "RUN TESTS: ${BEAM_RUNNER_TYPE}"
 echo '------------------------------------------------'
 echo
 
-mvn clean compile verify -Pit
-
-echo
-echo 'RUN INTEGRATION TESTS'
-echo '------------------------------------------------'
-echo
-
-mvn clean compile verify -Pit -DbeamTestPipelineOptions='["--runner=TestDataflowRunner"]'
+case "$BEAM_RUNNER_TYPE" in
+"dataflow") mvn clean compile verify -Pit -DbeamTestPipelineOptions='["--runner=TestDataflowRunner"]';;
+"direct") mvn clean compile verify -Pit;;
+*) >&2 echo "Received invalid BEAM_RUNNER_TYPE value: $BEAM_RUNNER_TYPE"
+esac
