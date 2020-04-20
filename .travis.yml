@@ -16,7 +16,8 @@ jobs:
     - name: Direct IT
       script: ci/run-tests.sh 'direct'
     - name: Dataflow IT
-      script: ci/run-tests.sh 'dataflow'
+      # Need to limit these. The full suite would take longer than Travis' max execution time
+      script: ci/run-tests.sh 'dataflow' '-pl beam-sdks-java-io-solace -Dit.test=SolaceIOLifecycleDataflowIT'
     - name: Direct Samples
       script: ci/run-samples-tests.sh 'direct'
 

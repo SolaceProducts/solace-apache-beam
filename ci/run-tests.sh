@@ -32,6 +32,10 @@ exit 1
 fi
 
 BEAM_RUNNER_TYPE="${1:-direct}"
+if [[ -n "$2" ]]; then
+  ADD_ARGS="$2"
+  echo "Setting additional test args: ${ADD_ARGS}"
+fi
 
 echo
 echo "RUN TESTS: ${BEAM_RUNNER_TYPE}"
@@ -39,7 +43,7 @@ echo '------------------------------------------------'
 echo
 
 case "$BEAM_RUNNER_TYPE" in
-"dataflow") mvn clean compile verify -Pit -DbeamTestPipelineOptions='["--runner=TestDataflowRunner"]';;
-"direct") mvn clean compile verify -Pit;;
+"dataflow") mvn clean compile verify -Pit -DbeamTestPipelineOptions='["--runner=TestDataflowRunner"]' $ADD_ARGS;;
+"direct") mvn clean compile verify -Pit $ADD_ARGS;;
 *) >&2 echo "Received invalid BEAM_RUNNER_TYPE value: $BEAM_RUNNER_TYPE"
 esac
