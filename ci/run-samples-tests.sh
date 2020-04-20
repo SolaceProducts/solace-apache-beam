@@ -95,4 +95,5 @@ elif [[ -z "$SOLACE_MGMT_PASSWORD" ]]; then
   exit 1
 fi
 
+mvn clean install -pl beam-sdks-java-io-solace
 testRecordApp
