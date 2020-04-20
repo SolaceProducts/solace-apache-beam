@@ -212,10 +212,6 @@
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-failsafe-plugin</artifactId>
-						<configuration>
-							<parallel>classes</parallel>
-							<threadCount>2</threadCount>
-						</configuration>
 					</plugin>
 				</plugins>
 			</build>
