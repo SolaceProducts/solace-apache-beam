@@ -85,6 +85,10 @@ PCollection<SolaceTextRecord> input = pipeline.apply(
                 .withMaxReadTime(Duration maxReadTime));
 ```
 
+**Note:** This connector does not come with any de-duplication features. It is up to the application developer to design their own duplicate message filtering mechanism. 
+
+### Configuration
+
 | Parameter              | Default          | Description  |
 |------------------------|------------------|--------------|
 | jcsmpProperties        | _Requires input_ | Solace PubSub+ connection config |
@@ -106,47 +110,64 @@ For the purposes of de-duplication messages the Solace Java SDK message Id is us
 
 To detect the amount of backlog that exists on a queue the Beam SolaceIO is consuming from, it sends a SEMP over the message bus request to the broker.  SEMP over the message bus show commands needs to be enabled as per these instructions: https://docs.solace.com/SEMP/Using-Legacy-SEMP.htm#Configur
 
+## Sample Walkthrough
 
-## Test Walkthrough
+### Acquire a Solace PubSub+ Service
 
-This repository is accompanied by a travis test. Walking through the important lines of this test as well as the example code included in this repo, will help exemplify the SolaceIO usage.  In this walkthrough Solace Cloud is used to provide a Solace PubSub+ message broker in a standard CI integrated test fassion.  Look [here](https://cloud.solace.com/) to see more info about Solace Cloud.
+To run the samples you will need a Solace PubSub+ Event Broker.
+Here are two ways to quickly get started if you don't already have a PubSub+ instance:
 
-Create a new Solace PubSub+ message broker as a service in Google Cloud:
-```yaml
-  - newBroker=`curl --request POST --url "https://console.solace.cloud/api/v0/services"  -H "Authorization:Bearer ${SOLACE_CLOUD_TOKEN}"  --header "Content-Type:application/json" --data @data.json`
-```
+1. Get a free Solace PubSub+ event broker cloud instance
+    * Visit https://solace.com/products/event-broker/cloud/
+    * Create an account and instance for free
+1. Run the Solace PubSub+ event broker locally
+    * Visit https://solace.com/downloads/
+    * A variety of download options are available to run the software locally
+    * Follow the instructions for whatever download option you choose
 
-Extract the connection information from the new broker service:
-```yaml
-- serviceInfo=`curl -H "Authorization:Bearer ${SOLACE_CLOUD_TOKEN}" --url "https://console.solace.cloud/api/v0/services/${serviceId}"`
-```
+### Configure a Solace PubSub+ VM for Apache Beam
 
-Create a test queue on the new message broker service:
-```yaml
-  - curl -X POST -H "content-type:application/json" -u ${MGMT_USERNAME}:${MGMT_PASSWORD} ${MGMT_URI}/msgVpns/${SOLACE_VPN}/queues -d '{"queueName":"Q/fx-001","egressEnabled":true,"ingressEnabled":true,"permission":"delete"}'
-```
+1. Enable show commands for SEMP over the message bus
+1. Create your queues
+    * For the sake of this tutorial, lets say you created two queues: `Q/fx-001` and `Q/fx-002`
 
-Test the new message broker is reachable and functioning:
-```yaml
-   - pubSubTools/sdkperf_c -cip=${SOLACE_URI} -cu="${USERNAME}@${SOLACE_VPN}" -cp=${PASSWORD} -mt=persistent -mn=100 -mr=10 -msa=10 -pql=Q/fx-001 -sql=Q/fx-001 | grep "Total Messages"
-```
+### Populate the Solace PubSub+ Queues
 
-Load 100 10-byte test messages onto the new message broker:
-```yaml
-  - pubSubTools/sdkperf_c -cip=${SOLACE_URI} -cu="${USERNAME}@${SOLACE_VPN}" -cp=${PASSWORD} -mt=persistent -mn=100 -mr=100 -msa=10 -pql=Q/fx-001  -epl "jcsmp.GENERATE_SEND_TIMESTAMPS,true,jcsmp.GENERATE_SEQUENCE_NUMBERS,true"
-```
+1. Download [SDKPerf](https://solace.com/downloads/#other-software-other) and extract the archive
+    * For the sake of this tutorial, lets say you downloaded C SDKPerf
+1. Load 100 10-byte test messages onto your queues:
+    ```shell script
+    sdkperf_c -cip=${SOLACE_URI} -cu="${USERNAME}@${SOLACE_VPN}" -cp=${PASSWORD} -mt=persistent -mn=100 -mr=10 -pfl=README.md -pql=Q/fx-001,Q/fx-002
+    ```
 
-Bring up a SolaceIO example on a local runner to consume the messages:
-```yaml
- - mvn -e compile exec:java -Dexec.mainClass=com.solace.apache.beam.examples.SolaceRecordTest -Dexec.args="--output=DR100A --cip=${SOLACE_URI} --cu=${USERNAME}@${SOLACE_VPN} --cp=${PASSWORD} --sql=Q/fx-001" > /dev/null 2> output.log &
-```
+### Run a Sample
 
- Validate the messages where received and acknowledged:
-```yaml
-  - grep -E "UnboundedSolaceReader - try to ack [0-9]+ messages with active Session" output.log
-```
+#### SolaceRecordTest
 
-### Contributing
+1. Run the SolaceRecordTest sample on a local Apache Beam runner to consume messages:
+    ```shell script
+    mvn -e compile exec:java \
+       -Dexec.mainClass=com.solace.apache.beam.examples.SolaceRecordTest \
+       -Dexec.args="--sql=Q/fx-001,Q/fx-002 --output=README10.counts --cip=${SOLACE_URI} --cu=${SOLACE_USERNAME} --cp=${SOLACE_PASSWORD} --vpn=${SOLACE_VPN}" \
+       > build.log 2> output.log &
+    ```
+1. Validate the messages where received and acknowledged
+    ```shell script
+    grep -E "SolaceRecordTest - \*\*\*CONTRIBUTING. [0-9]+" output.log
+    ```
+
+#### WindowedWordCountSolace
+
+1. Follow the [Before you Begin section in Google's Apache Beam Quickstart](https://cloud.google.com/dataflow/docs/quickstarts/quickstart-java-maven#before-you-begin) to setup your GCP environment for this sample
+1. Run the WindowedWordCountSolace sample in Google Dataflow:
+    ```shell script
+    mvn compile exec:java -Pdataflow-runner \
+       -Dexec.mainClass=com.solace.apache.beam.examples.WindowedWordCountSolace \
+       -Dexec.args="--runner=DataflowRunner --autoscalingAlgorithm=THROUGHPUT_BASED --numWorkers=2 --sql=Q/fx-001,Q/fx-002 --project=${GCP_PROJECT} --gcpTempLocation=${GOOGLE_STORAGE_TMP} --stagingLocation=${GOOGLE_STORAGE_STAGING} --output=${GOOGLE_STORAGE_OUTPUT} --cip=${SOLACE_URI} --cu=${SOLACE_USERNAME} --cp=${SOLACE_PASSWORD} --vpn=${SOLACE_VPN}"
+    ```
+1. Validate the messages where received and acknowledged by going to `$GOOGLE_STORAGE_OUTPUT` and verify that files were outputted into there.
+
+## Contributing
 
 Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull requests to us.
 
