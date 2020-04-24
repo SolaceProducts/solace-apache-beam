@@ -2,9 +2,22 @@
 
 # Apache Beam Solace PubSub+ I/O
 
-## Synopsis
+## Overview
 
-This repository provides a solution which allows applications connected to a Solace Event Mesh to interop with Apache Beam SDK and it's as a service offering Google Cloud Dataflow.
+This repository provides a solution which allows applications connected to a Solace Event Mesh to interop with the Apache Beam SDK and it's as a service offering Google Cloud Dataflow.
+
+## Table of contents
+* [Synopsis](#synopsis)
+* [Design](#design)
+* [Usage](#usage)
+* [Sample Walkthrough](#sample-walkthrough)
+* [Contributing](#contributing)
+* [Authors](#authors)
+* [License](#license)
+* [Resources](#resources)
+---
+
+## Synopsis
 
 Consider the following diagram:
 
@@ -39,13 +52,13 @@ This Beam integration solution allows any event from any service in the Solace E
 * File
 * Avro Format
 
-It does not matter which service in the Event Mesh created the event, the events are all potentially available to Beam Connected services. There is no longer a requirement to code end applications to reach individual data services.
+It does not matter which service in the Event Mesh created the event, the events are all potentially available to Beam-connected services. There is no longer a requirement to code end applications to reach individual data services.
 
 ![Event Mesh](images/EventMesh_Beam.png)
 
 ## Design
 
-The SolaceIO connector is an UnboundedSource connector providing an infinite data stream.  The connector will connect to a single Solace PubSub+ message broker, bind to and read from a list of [Solace Queues](https://docs.solace.com/Features/Endpoints.htm#Queues).  Each queue binding is a slice for the runner and can be read in parallel.  Messages can be acknowledged and deleted from Solace as they are read, (automatic), or in batches as each checkpoint is committed(client).  For information on these different acknowledgement modes, refer to [Solace Acknowledgments.](https://docs.solace.com/Solace-PubSub-Messaging-APIs/Developer-Guide/Acknowledging-Messages.htm) 
+The SolaceIO connector is an UnboundedSource connector providing an infinite data stream.  The connector will connect to a single Solace PubSub+ message broker, bind to and read from a list of [Solace Queues](https://docs.solace.com/Features/Endpoints.htm#Queues).  Each queue binding is a slice for the runner and can be read in parallel.  Messages are acknowledged and deleted from Solace in batches as each checkpoint is committed (client acks). 
 
 ## Usage
 
@@ -85,7 +98,7 @@ PCollection<SolaceTextRecord> input = pipeline.apply(
                 .withMaxReadTime(Duration maxReadTime));
 ```
 
-**Note:** This connector does not come with any de-duplication features. It is up to the application developer to design their own duplicate message filtering mechanism. 
+**Note:** This connector does not come with any de-duplication features. It is up to the application developer to design their own duplicate message filtering mechanism.
 
 ### Configuration
 
@@ -101,14 +114,17 @@ PCollection<SolaceTextRecord> input = pipeline.apply(
 | maxReadTime            | null             | Max read time (duration) while the SolaceIO.Read will receive messages. When this max read time is not null, the SolaceIO.Read will provide a bounded PCollection. |
 
 
-## Getting more accurate latency and backlog.
+### PubSub+ Broker Configuration for Apache Beam
 
-By default the latency measurement is taken from the time the message enters Dataflow and does not take into account the time sitting in a Solace queue waiting to be processed.  If messages are published with sender timestamps and senderTimestamp is enabled in the SolaceIO, then end to end latencies will be used and reported.   For java clients the jcsmp property GENERATE_SEND_TIMESTAMPS will ensure each message is sent with a timestamp.
-
-For the purposes of de-duplication messages the Solace Java SDK message Id is used by default.  This Id resets on reconnections and might not always be the best  for duplicate detection.  If a message is published with an application messageId and senderMessageId is enabled in the SolaceIO, then this value will be used to detect duplicates. For java clients the jcsmp property GENERATE_SEQUENCE_NUMBERS will ensure each message is sent with an application message Id.
-
-
+#### Allow Apache Beam to Detect Message Backlog
 To detect the amount of backlog that exists on a queue the Beam SolaceIO is consuming from, it sends a SEMP over the message bus request to the broker.  SEMP over the message bus show commands needs to be enabled as per these instructions: https://docs.solace.com/SEMP/Using-Legacy-SEMP.htm#Configur
+
+#### Get More Accurate Latency Measurements
+By default, the latency measurement is taken from the time the message enters Dataflow and does not take into account the time sitting in a Solace queue waiting to be processed.  If messages are published with sender timestamps and useSenderTimestamp is enabled in the SolaceIO, then end to end latencies will be used and reported.   For java clients the JCSMP property GENERATE_SEND_TIMESTAMPS will ensure each message is sent with a timestamp.
+
+#### Prevent Staggered Message Consumption
+
+Messages consumed by Apache Beam are acknowledged when the Beam runner decides that it is safe to do so. This has potential to cause the message consumption rate to stagger if the queues' configured maximum delivered unacknowledged messages per flow is too low. To prevent this, this setting should be configured to be equal to at least your required nominal message rate multiplied by your pipeline's window size.
 
 ## Sample Walkthrough
 

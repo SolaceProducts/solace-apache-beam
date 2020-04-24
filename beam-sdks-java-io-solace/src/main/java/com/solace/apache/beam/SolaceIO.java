@@ -1,11 +1,7 @@
 package com.solace.apache.beam;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import com.google.auto.value.AutoValue;
-
 import com.solacesystems.jcsmp.BytesXMLMessage;
-
 import com.solacesystems.jcsmp.JCSMPProperties;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
@@ -15,22 +11,30 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 
+import javax.annotation.Nullable;
 import java.io.Serializable;
-
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-import javax.annotation.Nullable;
+import static com.google.common.base.Preconditions.checkArgument;
 
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class SolaceIO {
 
 	//private static final Logger LOG = LoggerFactory.getLogger(SolaceIO.class);
+	private static final int DEFAULT_ADVANCE_TIMEOUT = 500;
+	private static final boolean DEFAULT_USE_SENDER_TIMESTAMP = false;
 
 	/**
-	 * Read Solace message, the user must set the message mapper and coder.
+	 * Read messages from a single Solace PubSub+ broker using JCSMP.
+	 * @param jcsmpProperties see {@link Read#withJcsmpProperties}
+	 * @param queues see {@link Read#withQueues}
+	 * @param coder see {@link Read#withCoder}
+	 * @param inboundMessageMapper see {@link Read#withInboundMessageMapper}
+	 * @param <T> The type of the resulting elements for the output {@link PCollection}
+	 * @return a new {@link Read} with default configuration
 	 */
 	public static <T> Read<T> read(JCSMPProperties jcsmpProperties, List<String> queues, Coder<T> coder,
 								   InboundMessageMapper<T> inboundMessageMapper) {
@@ -39,9 +43,9 @@ public class SolaceIO {
 				.setQueues(queues)
 				.setCoder(coder)
 				.setInboundMessageMapper(inboundMessageMapper)
-				.setAdvanceTimeoutInMillis(500)
+				.setAdvanceTimeoutInMillis(DEFAULT_ADVANCE_TIMEOUT)
 				.setMaxNumRecords(Long.MAX_VALUE)
-				.setUseSenderTimestamp(false)
+				.setUseSenderTimestamp(DEFAULT_USE_SENDER_TIMESTAMP)
 				.build();
 	}
 
@@ -113,44 +117,103 @@ public class SolaceIO {
 			}
 		}
 
+		/**
+		 * Sets the JCSMP connection config for Solace PubSub+.
+		 *
+		 * <p>Note: the JCSMP property {@link JCSMPProperties#CLIENT_NAME} must be {@code null}. This is because each
+		 * Apache Beam split has its own Solace session, and multiple sessions cannot share the same client name.
+		 * @param jcsmpProperties Solace PubSub+ JCSMP connection config
+		 * @return a new copy of this {@link Read} configured with the provided JCSMP
+		 */
 		public Read<T> withJcsmpProperties(JCSMPProperties jcsmpProperties) {
 			return builder().setJcsmpProperties(jcsmpProperties).build();
 		}
 
+		/**
+		 * Sets the list of pre-configured queues to which this {@link Read} will consume messages from.
+		 *
+		 * <p>For non-exclusive queues, you may add duplicate queue names in this list to create additional concurrent
+		 * readers for them.
+		 * @param queues list of queues
+		 * @return a new copy of this {@link Read} configured with the provided queue list
+		 */
 		public Read<T> withQueues(List<String> queues) {
 			return builder().setQueues(queues).build();
 		}
 
+		/**
+		 * Sets whether or not for this {@link Read} to use the sender timestamp to determine the freshness of its
+		 * data. Otherwise, the time at which Beam receives the data will be used.
+		 *
+		 * <p>By default, the latency measurement is taken from the time the message enters Dataflow and does not take
+		 * into account the time sitting in a Solace queue waiting to be processed. If messages are published with
+		 * sender timestamps and useSenderTimestamp is enabled in the SolaceIO, then end to end latencies will be used
+		 * and reported. For java clients the JCSMP property {@link JCSMPProperties#GENERATE_SEND_TIMESTAMPS} will
+		 * ensure that each message is sent with a timestamp.
+		 *
+		 * <p>Default: {@value DEFAULT_USE_SENDER_TIMESTAMP}
+		 * @param useSenderTimestamp set to true to use the data's sender timestamp to determine their freshness
+		 * @return a new copy of this {@link Read} configured with the provided indication to use or not use sender
+		 * timestamps
+		 */
 		public Read<T> withUseSenderTimestamp(boolean useSenderTimestamp) {
 			return builder().setUseSenderTimestamp(useSenderTimestamp).build();
 		}
 
+		/**
+		 * Sets the message polling timeout for this {@link Read}. If the poll timeout is passed, then this
+		 * {@link Read} will treat that poll as a {@code null} message. i.e. no messages were available from the Solace PubSub+
+		 * source.
+		 *
+		 * <p>Default: {@value #DEFAULT_ADVANCE_TIMEOUT}
+		 * @param advanceTimeoutInMillis the message polling timeout in milliseconds
+		 * @return a new copy of this {@link Read} configured with the provided advance timeout
+		 */
 		public Read<T> withAdvanceTimeoutInMillis(int advanceTimeoutInMillis) {
 			return builder().setAdvanceTimeoutInMillis(advanceTimeoutInMillis).build();
 		}
 
 		/**
-		 * Define the max number of records received by the {@link Read}. When this max
-		 * number of records is lower than {@code Long.MAX_VALUE}, the {@link Read} will
+		 * Sets the max number of records received by this {@link Read}. When this max
+		 * number of records is lower than {@link Long#MAX_VALUE}, the {@link Read} will
 		 * provide a bounded {@link PCollection}.
+		 *
+		 * <p>Default: {@link Long#MAX_VALUE}
+		 * @param maxNumRecords the maximum number of records to receive
+		 * @return a new copy of this {@link Read} configured with the provided maximum number of records
 		 */
 		public Read<T> withMaxNumRecords(long maxNumRecords) {
 			return builder().setMaxNumRecords(maxNumRecords).build();
 		}
 
 		/**
-		 * Define the max read time (duration) while the {@link Read} will receive
-		 * messages. When this max read time is not null, the {@link Read} will provide
-		 * a bounded {@link PCollection}.
+		 * Sets the max read time (duration) that this {@link Read} will receive messages.
+		 * When this max read time is not {@code null}, the {@link Read} will provide a bounded {@link PCollection}.
+		 * @param maxReadTime the maximum time to receive messages
+		 * @return a new copy of this {@link Read} configured with the provided maximum read time
 		 */
 		public Read<T> withMaxReadTime(Duration maxReadTime) {
 			return builder().setMaxReadTime(maxReadTime).build();
 		}
 
+		/**
+		 * Sets the {@link InboundMessageMapper} that this {@link Read} will use to map Solace messages into elements
+		 * of the resulting {@link PCollection}.
+		 * @param inboundMessageMapper the message mapper
+		 * @return a new copy of this {@link Read} configured with the provided mapper
+		 * @see InboundMessageMapper
+		 */
 		public Read<T> withInboundMessageMapper(InboundMessageMapper<T> inboundMessageMapper) {
 			return builder().setInboundMessageMapper(inboundMessageMapper).build();
 		}
 
+		/**
+		 * Sets the {@link Coder} that this {@link Read} will use to encode and decode the elements of the resulting
+		 * {@link PCollection}.
+		 * @param coder the output coder
+		 * @return a new copy of this {@link Read} configured with the provided output coder
+		 * @see Coder
+		 */
 		public Read<T> withCoder(Coder<T> coder) {
 			return builder().setCoder(coder).build();
 		}

@@ -53,7 +53,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import jdk.internal.org.jline.utils.Log;
-
 import java.util.Arrays;
 import java.util.List;
 
@@ -174,6 +173,7 @@ public class SolaceProtoBuffRecordTest {
 		for (String queueName : queues) {
     		final XMLMessageProducer prod = session.getMessageProducer(
             new JCSMPStreamingPublishEventHandler() {
+
                 @Override
                 public void responseReceived(String messageId) {
 					Log.debug("Producer received ack for msg ID {} ", messageId);
@@ -181,6 +181,7 @@ public class SolaceProtoBuffRecordTest {
                 @Override
                 public void handleError(String messageId, JCSMPException e, long timestamp) {
 					Log.warn("Producer received error for msg ID {} @ {} - {}", messageId ,timestamp, e);
+
                 }
             });
 
@@ -195,14 +196,18 @@ public class SolaceProtoBuffRecordTest {
 			for (int x =1; x < 1000; x++) { 
 				prod.send(msg, queue);
 			}
-			LOG.info("Message sent to queue {}...",queue.getName());
+
+			LOG.info("Messages sent to queue {}...",queue.getName());
+
 		}
 
 		session.closeSession();
 
 	}
 
+
 	static PipelineResult runPaseProtoBuff(Options options) throws Exception {
+
 
 		List<String> queues = Arrays.asList(options.getSql().split(","));
 		JCSMPProperties jcsmpProperties = new JCSMPProperties();
@@ -233,16 +238,20 @@ public class SolaceProtoBuffRecordTest {
 			.apply(MapElements.into(TypeDescriptors.nulls()).via((TestOuterClass.Test x) -> {LOG.info(x.toString()); return (Void) null;})
 			);
 
+
 		return pipeline.run();
+
 
 	}
 
 	public static void main(String[] args) {
 		Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+
 		try {
 			PipelineResult result = runPaseProtoBuff(options);
 			runPublishProtoBuff(options);
 			result.waitUntilFinish();
+
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

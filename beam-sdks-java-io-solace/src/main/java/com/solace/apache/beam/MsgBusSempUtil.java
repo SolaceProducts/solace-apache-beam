@@ -4,6 +4,7 @@ import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.CapabilityType;
 import com.solacesystems.jcsmp.JCSMPException;
 import com.solacesystems.jcsmp.JCSMPFactory;
+import com.solacesystems.jcsmp.JCSMPProperties;
 import com.solacesystems.jcsmp.JCSMPSession;
 import com.solacesystems.jcsmp.JCSMPStreamingPublishEventHandler;
 import com.solacesystems.jcsmp.Requestor;
@@ -70,14 +71,20 @@ class MsgBusSempUtil {
 
 	public void start() throws JCSMPException {
 		if (createProducer) {
+			LOG.info(String.format("Creating %s %s for session %s", Requestor.class.getSimpleName(),
+					XMLMessageProducer.class.getSimpleName(), jcsmpSession.getProperty(JCSMPProperties.CLIENT_NAME)));
 			producer = jcsmpSession.getMessageProducer(new PrintingPubCallback());
 		}
 
 		if (createConsumer) {
+			LOG.info(String.format("Creating %s %s for session %s", Requestor.class.getSimpleName(),
+					XMLMessageConsumer.class.getSimpleName(), jcsmpSession.getProperty(JCSMPProperties.CLIENT_NAME)));
 			consumer = jcsmpSession.getMessageConsumer((XMLMessageListener) null);
 			consumer.start();
 		}
 
+		LOG.info(String.format("Creating %s for session %s", Requestor.class.getSimpleName(),
+				jcsmpSession.getProperty(JCSMPProperties.CLIENT_NAME)));
 		requestor = jcsmpSession.createRequestor();
 
 		String routerName = (String) jcsmpSession.getCapability(CapabilityType.PEER_ROUTER_NAME);
@@ -86,11 +93,18 @@ class MsgBusSempUtil {
 	}
 
 	public void close() {
+		LOG.info(String.format("Closing %s resources for session %s", Requestor.class.getSimpleName(),
+				jcsmpSession.getProperty(JCSMPProperties.CLIENT_NAME)));
+
 		if (producer != null) {
+			LOG.info(String.format("Stopping %s %s for session %s", Requestor.class.getSimpleName(),
+					XMLMessageProducer.class.getSimpleName(), jcsmpSession.getProperty(JCSMPProperties.CLIENT_NAME)));
 			producer.close();
 		}
 
 		if (consumer != null) {
+			LOG.info(String.format("Stopping %s %s for session %s", Requestor.class.getSimpleName(),
+					XMLMessageConsumer.class.getSimpleName(), jcsmpSession.getProperty(JCSMPProperties.CLIENT_NAME)));
 			consumer.close();
 		}
 	}
@@ -98,7 +112,19 @@ class MsgBusSempUtil {
 	public BytesXMLMessage queryRouter(String queryString) throws JCSMPException {
 		BytesXMLMessage requestMsg = JCSMPFactory.onlyInstance().createMessage(BytesXMLMessage.class);
 		requestMsg.writeAttachment(queryString.getBytes());
-		return requestor.request(requestMsg, 5000, sempShowTopic);
+		try {
+			return requestor.request(requestMsg, 5000, sempShowTopic);
+		} catch (JCSMPException e) {
+			if (jcsmpSession.isClosed()) {
+				throw e;
+			} else {
+				LOG.warn(String.format("Failed to execute message bus SEMP request, restarting %s: %s",
+						Requestor.class.getSimpleName(), e.getMessage()), e);
+				close();
+				start();
+				return requestor.request(requestMsg, 5000, sempShowTopic);
+			}
+		}
 	}
 
 	public String queryRouter(String queryString, String searchString) throws JCSMPException, ParserConfigurationException, IOException, SAXException, XPathExpressionException, TransformerException {
