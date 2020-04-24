@@ -122,6 +122,10 @@ To detect the amount of backlog that exists on a queue the Beam SolaceIO is cons
 #### Get More Accurate Latency Measurements
 By default, the latency measurement is taken from the time the message enters Dataflow and does not take into account the time sitting in a Solace queue waiting to be processed.  If messages are published with sender timestamps and useSenderTimestamp is enabled in the SolaceIO, then end to end latencies will be used and reported.   For java clients the JCSMP property GENERATE_SEND_TIMESTAMPS will ensure each message is sent with a timestamp.
 
+#### Prevent Staggered Message Consumption
+
+Messages consumed by Apache Beam are acknowledged when the Beam runner decides that it is safe to do so. This has potential to cause the message consumption rate to stagger if the queues' configured maximum delivered unacknowledged messages per flow is too low. To prevent this, this setting should be configured to be equal to at least your required nominal message rate multiplied by your pipeline's window size.
+
 ## Sample Walkthrough
 
 ### Acquire a Solace PubSub+ Service
