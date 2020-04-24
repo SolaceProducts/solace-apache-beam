@@ -149,6 +149,7 @@ Here are two ways to quickly get started if you don't already have a PubSub+ ins
 
 ### Populate the Solace PubSub+ Queues
 
+1. If you're running the SolaceProtoBuffRecordTest sample, skip this section.
 1. Download [SDKPerf](https://solace.com/downloads/#other-software-other) and extract the archive
     * For the sake of this tutorial, lets say you downloaded C SDKPerf
 1. Load 100 10-byte test messages onto your queues:
@@ -182,6 +183,14 @@ Here are two ways to quickly get started if you don't already have a PubSub+ ins
        -Dexec.args="--runner=DataflowRunner --autoscalingAlgorithm=THROUGHPUT_BASED --numWorkers=2 --sql=Q/fx-001,Q/fx-002 --project=${GCP_PROJECT} --gcpTempLocation=${GOOGLE_STORAGE_TMP} --stagingLocation=${GOOGLE_STORAGE_STAGING} --output=${GOOGLE_STORAGE_OUTPUT} --cip=${SOLACE_URI} --cu=${SOLACE_USERNAME} --cp=${SOLACE_PASSWORD} --vpn=${SOLACE_VPN}"
     ```
 1. Validate the messages where received and acknowledged by going to `$GOOGLE_STORAGE_OUTPUT` and verify that files were outputted into there.
+
+#### SolaceProtoBuffRecordTest
+1. Run the SolaceProtoBuffRecordTest sample on a local Apache Beam runner to consume messages:
+    ```shell script
+    mvn -e compile exec:java \
+       -Dexec.mainClass=com.solace.apache.beam.examples.SolaceProtoBuffRecordTest \
+       -Dexec.args="--sql=Q/fx-001,Q/fx-002 --output=README10.counts --cip=${SOLACE_URI} --cu=${SOLACE_USERNAME} --cp=${SOLACE_PASSWORD} --vpn=${SOLACE_VPN}"
+    ```
 
 ## Contributing
 

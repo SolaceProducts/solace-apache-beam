@@ -17,10 +17,8 @@
  */
 package com.solace.apache.beam.examples;
 
-import com.google.common.primitives.Longs;
 import com.solace.apache.beam.SolaceIO;
 import com.solace.apache.beam.examples.common.SolaceByteBuffRecord;
-import com.solace.apache.beam.examples.TestOuterClass;
 import com.solacesystems.jcsmp.BytesMessage;
 import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.JCSMPException;
@@ -30,29 +28,22 @@ import com.solacesystems.jcsmp.JCSMPSession;
 import com.solacesystems.jcsmp.JCSMPStreamingPublishEventHandler;
 import com.solacesystems.jcsmp.Queue;
 import com.solacesystems.jcsmp.XMLMessageProducer;
-
-
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Distinct;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.InferableFunction;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import jdk.internal.org.jline.utils.Log;
 import java.util.Arrays;
 import java.util.List;
 
@@ -176,11 +167,11 @@ public class SolaceProtoBuffRecordTest {
 
                 @Override
                 public void responseReceived(String messageId) {
-					Log.debug("Producer received ack for msg ID {} ", messageId);
+					LOG.debug("Producer received ack for msg ID {} ", messageId);
                 }
                 @Override
                 public void handleError(String messageId, JCSMPException e, long timestamp) {
-					Log.warn("Producer received error for msg ID {} @ {} - {}", messageId ,timestamp, e);
+					LOG.warn("Producer received error for msg ID {} @ {} - {}", messageId ,timestamp, e);
 
                 }
             });
@@ -193,7 +184,7 @@ public class SolaceProtoBuffRecordTest {
 			msg.setDeliveryMode(DeliveryMode.PERSISTENT);
 			msg.setData(test.build().toByteArray());
 			// Send message directly to the queue
-			for (int x =1; x < 1000; x++) { 
+			for (int x =1; x < 1000; x++) {
 				prod.send(msg, queue);
 			}
 
@@ -226,7 +217,7 @@ public class SolaceProtoBuffRecordTest {
 				Window.<SolaceByteBuffRecord>into(FixedWindows.of(Duration.standardSeconds(4)))
 			)
 			.apply(Distinct
-				.<SolaceByteBuffRecord, Long>withRepresentativeValueFn(m -> m.getMessageId())
+				.<SolaceByteBuffRecord, Long>withRepresentativeValueFn(SolaceByteBuffRecord::getMessageId)
 				.withRepresentativeType(TypeDescriptor.of(Long.class))
 			)
 			.apply(MapElements.via(new InferableFunction<SolaceByteBuffRecord, TestOuterClass.Test>() {
@@ -235,8 +226,10 @@ public class SolaceProtoBuffRecordTest {
 					return TestOuterClass.Test.parseFrom(deduppedInput.getRawProtoBuff());
 				}
 			}))
-			.apply(MapElements.into(TypeDescriptors.nulls()).via((TestOuterClass.Test x) -> {LOG.info(x.toString()); return (Void) null;})
-			);
+			.apply(MapElements.into(TypeDescriptors.nulls()).via((TestOuterClass.Test x) -> {
+				LOG.info(x.toString());
+				return null;
+			}));
 
 
 		return pipeline.run();
@@ -248,8 +241,8 @@ public class SolaceProtoBuffRecordTest {
 		Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
 
 		try {
-			PipelineResult result = runPaseProtoBuff(options);
 			runPublishProtoBuff(options);
+			PipelineResult result = runPaseProtoBuff(options);
 			result.waitUntilFinish();
 
 		} catch (Exception e) {
