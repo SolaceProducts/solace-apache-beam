@@ -64,21 +64,21 @@ The SolaceIO connector is an UnboundedSource connector providing an infinite dat
 
 ### Updating Your Build
 
-The releases from this project are hosted in [Maven Central](https://mvnrepository.com/artifact/com.solace.apache.beam/beam-sdks-java-io-solace).
+The releases from this project are hosted in [Maven Central](https://mvnrepository.com/artifact/com.solace.connector.beam/beam-sdks-java-io-solace).
 
 Here is how to include the SolaceIO connector in your project using Gradle and Maven.
 
 #### Using it with Gradle
 ```groovy
 // Apache Beam Solace PubSub+ I/O
-compile("com.solace.apache.beam:beam-sdks-java-io-solace:1.0.+")
+compile("com.solace.connector.beam:beam-sdks-java-io-solace:1.0.+")
 ```
 
 #### Using it with Maven
 ```xml
 <!-- Apache Beam Solace PubSub+ I/O -->
 <dependency>
-  <groupId>com.solace.apache.beam</groupId>
+  <groupId>com.solace.connector.beam</groupId>
   <artifactId>beam-sdks-java-io-solace</artifactId>
   <version>1.0.+</version>
 </dependency>
@@ -164,7 +164,7 @@ Here are two ways to quickly get started if you don't already have a PubSub+ ins
 1. Run the SolaceRecordTest sample on a local Apache Beam runner to consume messages:
     ```shell script
     mvn -e compile exec:java \
-       -Dexec.mainClass=com.solace.apache.beam.examples.SolaceRecordTest \
+       -Dexec.mainClass=com.solace.connector.beam.examples.SolaceRecordTest \
        -Dexec.args="--sql=Q/fx-001,Q/fx-002 --output=README10.counts --cip=${SOLACE_URI} --cu=${SOLACE_USERNAME} --cp=${SOLACE_PASSWORD} --vpn=${SOLACE_VPN}" \
        > build.log 2> output.log &
     ```
@@ -179,7 +179,7 @@ Here are two ways to quickly get started if you don't already have a PubSub+ ins
 1. Run the WindowedWordCountSolace sample in Google Dataflow:
     ```shell script
     mvn compile exec:java -Pdataflow-runner \
-       -Dexec.mainClass=com.solace.apache.beam.examples.WindowedWordCountSolace \
+       -Dexec.mainClass=com.solace.connector.beam.examples.WindowedWordCountSolace \
        -Dexec.args="--runner=DataflowRunner --autoscalingAlgorithm=THROUGHPUT_BASED --numWorkers=2 --sql=Q/fx-001,Q/fx-002 --project=${GCP_PROJECT} --gcpTempLocation=${GOOGLE_STORAGE_TMP} --stagingLocation=${GOOGLE_STORAGE_STAGING} --output=${GOOGLE_STORAGE_OUTPUT} --cip=${SOLACE_URI} --cu=${SOLACE_USERNAME} --cp=${SOLACE_PASSWORD} --vpn=${SOLACE_VPN}"
     ```
 1. Validate the messages where received and acknowledged by going to `$GOOGLE_STORAGE_OUTPUT` and verify that files were outputted into there.
@@ -188,7 +188,7 @@ Here are two ways to quickly get started if you don't already have a PubSub+ ins
 1. Run the SolaceProtoBuffRecordTest sample on a local Apache Beam runner to consume messages:
     ```shell script
     mvn -e compile exec:java \
-       -Dexec.mainClass=com.solace.apache.beam.examples.SolaceProtoBuffRecordTest \
+       -Dexec.mainClass=com.solace.connector.beam.examples.SolaceProtoBuffRecordTest \
        -Dexec.args="--sql=Q/fx-001,Q/fx-002 --output=README10.counts --cip=${SOLACE_URI} --cu=${SOLACE_USERNAME} --cp=${SOLACE_PASSWORD} --vpn=${SOLACE_VPN}"
     ```
 

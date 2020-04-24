@@ -1,7 +1,0 @@
-syntax = "proto2";
-
-package com.solace.apache.beam.examples
-
-message Test {
-    required string test = 1;
-}

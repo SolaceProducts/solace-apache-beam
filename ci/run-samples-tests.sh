@@ -45,7 +45,7 @@ testRecordApp() {
   RUNNING_PID="testRecordApp-proc.pid"
   mvn -e compile exec:java \
       -pl solace-apache-beam-samples \
-      -Dexec.mainClass=com.solace.apache.beam.examples.SolaceRecordTest \
+      -Dexec.mainClass=com.solace.connector.beam.examples.SolaceRecordTest \
       -Dexec.args="--output=README10.counts --cip=tcp://${SOLACE_HOST}:55555 --cu=${SOLACE_USERNAME} --vpn=${SOLACE_VPN_NAME} --cp=${SOLACE_PASSWORD} --sql=${QUEUE}" \
       2>&1 | tee output.log &
   echo $! > "$RUNNING_PID"
