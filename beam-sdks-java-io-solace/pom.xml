@@ -26,6 +26,10 @@
 	</parent>
 
 	<artifactId>beam-sdks-java-io-solace</artifactId>
+	<packaging>jar</packaging>
+
+	<name>Apache Beam Solace PubSub+ I/O</name>
+	<description>Apache Beam I/O Component for Solace PubSub+</description>
 
 	<dependencies>
 		<dependency>

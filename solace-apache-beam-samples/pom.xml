@@ -26,6 +26,10 @@
 	</parent>
 
 	<artifactId>solace-apache-beam-samples</artifactId>
+	<packaging>jar</packaging>
+
+	<name>Apache Beam Solace PubSub+ I/O Samples</name>
+	<description>Samples for the Apache Beam I/O Component for Solace PubSub+</description>
 
 	<properties>
 		<beam.version>2.18.0</beam.version>
@@ -35,15 +39,12 @@
 		<google-clients.version>1.30.2</google-clients.version>
 		<guava.version>20.0</guava.version>
 		<hamcrest.version>1.3</hamcrest.version>
-		<jackson.version>2.9.5</jackson.version>
 		<joda.version>2.4</joda.version>
 		<maven-exec-plugin.version>1.6.0</maven-exec-plugin.version>
 		<maven-jar-plugin.version>3.0.2</maven-jar-plugin.version>
 		<maven-shade-plugin.version>3.1.0</maven-shade-plugin.version>
 		<pubsub.version>v1-rev382-1.23.0</pubsub.version>
 		<slf4j.version>1.7.25</slf4j.version>
-		<spark.version>2.3.1</spark.version>
-		<hadoop.version>2.7.3</hadoop.version>
 	</properties>
 
 	<dependencyManagement>
@@ -177,133 +178,12 @@
 		</profile>
 
 		<profile>
-			<id>apex-runner</id>
-			<!-- Makes the ApexRunner available when running a pipeline. -->
-			<dependencies>
-				<dependency>
-					<groupId>org.apache.beam</groupId>
-					<artifactId>beam-runners-apex</artifactId>
-					<scope>runtime</scope>
-				</dependency>
-				<!--
-				  Apex depends on httpclient version 4.3.6, project has a transitive dependency to httpclient 4.0.1 from
-				  google-http-client. Apex dependency version being specified explicitly so that it gets picked up. This
-				  can be removed when the project no longer has a dependency on a different httpclient version.
-				-->
-				<dependency>
-					<groupId>org.apache.httpcomponents</groupId>
-					<artifactId>httpclient</artifactId>
-					<version>4.3.6</version>
-					<scope>runtime</scope>
-					<exclusions>
-						<exclusion>
-							<groupId>commons-codec</groupId>
-							<artifactId>commons-codec</artifactId>
-						</exclusion>
-					</exclusions>
-				</dependency>
-				<!--
-				  Apex 3.6 is built against YARN 2.6. Version in the fat jar has to match
-				  what's on the cluster, hence we need to repeat the Apex Hadoop dependencies here.
-				-->
-				<dependency>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-yarn-client</artifactId>
-					<version>${hadoop.version}</version>
-					<scope>runtime</scope>
-				</dependency>
-				<dependency>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-common</artifactId>
-					<version>${hadoop.version}</version>
-					<scope>runtime</scope>
-				</dependency>
-			</dependencies>
-		</profile>
-
-		<profile>
 			<id>dataflow-runner</id>
 			<!-- Makes the DataflowRunner available when running a pipeline. -->
 			<dependencies>
 				<dependency>
 					<groupId>org.apache.beam</groupId>
 					<artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
-					<scope>runtime</scope>
-				</dependency>
-			</dependencies>
-		</profile>
-
-		<profile>
-			<id>flink-runner</id>
-			<!-- Makes the FlinkRunner available when running a pipeline. -->
-			<dependencies>
-				<dependency>
-					<groupId>org.apache.beam</groupId>
-					<artifactId>beam-runners-flink_2.11</artifactId>
-					<scope>runtime</scope>
-				</dependency>
-			</dependencies>
-		</profile>
-
-		<profile>
-			<id>spark-runner</id>
-			<!-- Makes the SparkRunner available when running a pipeline. Additionally,
-				 overrides some Spark dependencies to Beam-compatible versions. -->
-			<properties>
-				<netty.version>4.1.17.Final</netty.version>
-			</properties>
-			<dependencies>
-				<dependency>
-					<groupId>org.apache.beam</groupId>
-					<artifactId>beam-runners-spark</artifactId>
-					<scope>runtime</scope>
-				</dependency>
-				<dependency>
-					<groupId>org.apache.beam</groupId>
-					<artifactId>beam-sdks-java-io-hadoop-file-system</artifactId>
-					<scope>runtime</scope>
-				</dependency>
-				<dependency>
-					<groupId>org.apache.spark</groupId>
-					<artifactId>spark-streaming_2.11</artifactId>
-					<version>${spark.version}</version>
-					<scope>runtime</scope>
-					<exclusions>
-						<exclusion>
-							<groupId>org.slf4j</groupId>
-							<artifactId>jul-to-slf4j</artifactId>
-						</exclusion>
-					</exclusions>
-				</dependency>
-				<dependency>
-					<groupId>com.fasterxml.jackson.module</groupId>
-					<artifactId>jackson-module-scala_2.11</artifactId>
-					<version>${jackson.version}</version>
-					<scope>runtime</scope>
-				</dependency>
-				<!-- [BEAM-3519] GCP IO exposes netty on its API surface, causing conflicts with runners -->
-				<dependency>
-					<groupId>org.apache.beam</groupId>
-					<artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
-					<exclusions>
-						<exclusion>
-							<groupId>io.grpc</groupId>
-							<artifactId>grpc-netty</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>io.netty</groupId>
-							<artifactId>netty-handler</artifactId>
-						</exclusion>
-					</exclusions>
-				</dependency>
-			</dependencies>
-		</profile>
-		<profile>
-			<id>gearpump-runner</id>
-			<dependencies>
-				<dependency>
-					<groupId>org.apache.beam</groupId>
-					<artifactId>beam-runners-gearpump</artifactId>
 					<scope>runtime</scope>
 				</dependency>
 			</dependencies>
