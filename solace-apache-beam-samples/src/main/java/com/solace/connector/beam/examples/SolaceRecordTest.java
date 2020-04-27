@@ -19,12 +19,15 @@ package com.solace.connector.beam.examples;
 
 import com.google.common.primitives.Longs;
 import com.solace.connector.beam.SolaceIO;
+import com.solace.connector.beam.examples.common.CountWords;
 import com.solace.connector.beam.examples.common.SolaceTextRecord;
+import com.solace.connector.beam.examples.common.WordCountToTextFn;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -43,58 +46,21 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * An example that counts words in text, and can run over either unbounded or bounded input
- * collections.
+ * An example that counts the number of each word in the received Solace message payloads, outputs the results as
+ * log messages, and can run over either unbounded or bounded input collections.
  *
- * <p>This class, {@link WindowedWordCount}, is the last in a series of four successively more
- * detailed 'word count' examples. First take a look at {@link MinimalWordCount}, {@link WordCount},
- * and {@link DebuggingWordCount}.
- *
- * <p>Basic concepts, also in the MinimalWordCount, WordCount, and DebuggingWordCount examples:
- * Reading text files; counting a PCollection; writing to GCS; executing a Pipeline both locally and
- * using a selected runner; defining DoFns; user-defined PTransforms; defining PipelineOptions.
- *
- * <p>New Concepts:
- *
- * <pre>
- *   1. Unbounded and bounded pipeline input modes
- *   2. Adding timestamps to data
- *   3. Windowing
- *   4. Re-using PTransforms over windowed PCollections
- *   5. Accessing the window of an element
- *   6. Writing data to per-window text files
- * </pre>
- *
- * <p>By default, the examples will run with the {@code DirectRunner}. To change the runner,
- * specify:
+ * <p>By default, the examples will run with the {@code DirectRunner}. To run the pipeline on
+ * Google Dataflow, specify:
  *
  * <pre>{@code
- * --runner=YOUR_SELECTED_RUNNER
+ * --runner=DataflowRunner
  * }</pre>
  * <p>
- * See examples/java/README.md for instructions about how to configure different runners.
- *
- * <p>To execute this pipeline locally, specify a local output file (if using the {@code
- * DirectRunner}) or output prefix on a supported distributed file system.
- *
- * <pre>{@code
- * --output=[YOUR_LOCAL_FILE | YOUR_OUTPUT_PREFIX]
- * }</pre>
- *
- * <p>The input file defaults to a public data set containing the text of of King Lear, by William
- * Shakespeare. You can override it and choose your own input with {@code --inputFile}.
- *
- * <p>By default, the pipeline will do fixed windowing, on 10-minute windows. You can change this
- * interval by setting the {@code --windowSize} parameter, e.g. {@code --windowSize=15} for
- * 15-minute windows.
- *
- * <p>The example will try to cancel the pipeline on the signal to terminate the process (CTRL-C).
  */
 public class SolaceRecordTest {
 	private static final Logger LOG = LoggerFactory.getLogger(SolaceRecordTest.class);
 
-	public interface Options
-			extends WordCount.WordCountOptions {
+	public interface Options extends PipelineOptions {
 		@Description("IP and port of the client appliance. (e.g. -cip=192.168.160.101)")
 		String getCip();
 
@@ -187,9 +153,9 @@ public class SolaceRecordTest {
 			}
 		}));
 
-		PCollection<KV<String, Long>> wordCounts = payloads.apply(new WordCount.CountWords());
+		PCollection<KV<String, Long>> wordCounts = payloads.apply(new CountWords());
 
-		wordCounts.apply(MapElements.via(new WordCount.FormatAsTextFn()))
+		wordCounts.apply(MapElements.via(new WordCountToTextFn()))
 				.apply(ParDo.of(new DoFn<String, String>() {
 					@ProcessElement
 					public void processElement(@Element String e) {

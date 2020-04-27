@@ -149,7 +149,8 @@ Here are two ways to quickly get started if you don't already have a PubSub+ ins
 
 ### Populate the Solace PubSub+ Queues
 
-1. If you're running the SolaceProtoBuffRecordTest sample, skip this section.
+Skip this section if you will be running the [SolaceProtoBuffRecordTest](#solaceprotobuffrecordtest) sample.
+
 1. Download [SDKPerf](https://solace.com/downloads/#other-software-other) and extract the archive
     * For the sake of this tutorial, lets say you downloaded C SDKPerf
 1. Load 100 10-byte test messages onto your queues:
@@ -161,11 +162,13 @@ Here are two ways to quickly get started if you don't already have a PubSub+ ins
 
 #### SolaceRecordTest
 
+The [SolaceRecordTest](solace-apache-beam-samples/src/main/java/com/solace/connector/beam/examples/SolaceRecordTest.java) example counts the number of each word in the received Solace message payloads and outputs the results as log messages.
+
 1. Run the SolaceRecordTest sample on a local Apache Beam runner to consume messages:
     ```shell script
     mvn -e compile exec:java \
        -Dexec.mainClass=com.solace.connector.beam.examples.SolaceRecordTest \
-       -Dexec.args="--sql=Q/fx-001,Q/fx-002 --output=README10.counts --cip=${SOLACE_URI} --cu=${SOLACE_USERNAME} --cp=${SOLACE_PASSWORD} --vpn=${SOLACE_VPN}" \
+       -Dexec.args="--sql=Q/fx-001,Q/fx-002 --cip=${SOLACE_URI} --cu=${SOLACE_USERNAME} --cp=${SOLACE_PASSWORD} --vpn=${SOLACE_VPN}" \
        > build.log 2> output.log &
     ```
 1. Validate the messages where received and acknowledged
@@ -175,21 +178,27 @@ Here are two ways to quickly get started if you don't already have a PubSub+ ins
 
 #### WindowedWordCountSolace
 
+The [WindowedWordCountSolace](solace-apache-beam-samples/src/main/java/com/solace/connector/beam/examples/WindowedWordCountSolace.java) example counts the number of each word in the received Solace message payloads and outputs the results to Google Cloud Storage.
+
 1. Follow the [Before you Begin section in Google's Apache Beam Quickstart](https://cloud.google.com/dataflow/docs/quickstarts/quickstart-java-maven#before-you-begin) to setup your GCP environment for this sample
 1. Run the WindowedWordCountSolace sample in Google Dataflow:
     ```shell script
-    mvn compile exec:java -Pdataflow-runner \
+    mvn compile exec:java \
+       -Pdataflow-runner \
        -Dexec.mainClass=com.solace.connector.beam.examples.WindowedWordCountSolace \
        -Dexec.args="--runner=DataflowRunner --autoscalingAlgorithm=THROUGHPUT_BASED --numWorkers=2 --sql=Q/fx-001,Q/fx-002 --project=${GCP_PROJECT} --gcpTempLocation=${GOOGLE_STORAGE_TMP} --stagingLocation=${GOOGLE_STORAGE_STAGING} --output=${GOOGLE_STORAGE_OUTPUT} --cip=${SOLACE_URI} --cu=${SOLACE_USERNAME} --cp=${SOLACE_PASSWORD} --vpn=${SOLACE_VPN}"
     ```
 1. Validate the messages where received and acknowledged by going to `$GOOGLE_STORAGE_OUTPUT` and verify that files were outputted into there.
 
 #### SolaceProtoBuffRecordTest
-1. Run the SolaceProtoBuffRecordTest sample on a local Apache Beam runner to consume messages:
+
+The [SolaceProtoBuffRecordTest](solace-apache-beam-samples/src/main/java/com/solace/connector/beam/examples/SolaceProtoBuffRecordTest.java) example sends and receives [Protocol Buffer](https://google.github.io/proto-lens/installing-protoc.html) generated messages. These messages are sent using JCSMP and received and outputted as log messages by an Apache Beam pipeline.
+
+1. Run the SolaceProtoBuffRecordTest sample on a local Apache Beam runner to send and consume messages:
     ```shell script
     mvn -e compile exec:java \
        -Dexec.mainClass=com.solace.connector.beam.examples.SolaceProtoBuffRecordTest \
-       -Dexec.args="--sql=Q/fx-001,Q/fx-002 --output=README10.counts --cip=${SOLACE_URI} --cu=${SOLACE_USERNAME} --cp=${SOLACE_PASSWORD} --vpn=${SOLACE_VPN}"
+       -Dexec.args="--sql=Q/fx-001,Q/fx-002 --cip=${SOLACE_URI} --cu=${SOLACE_USERNAME} --cp=${SOLACE_PASSWORD} --vpn=${SOLACE_VPN}"
     ```
 
 ## Contributing

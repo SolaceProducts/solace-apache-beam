@@ -18,7 +18,9 @@
 package com.solace.connector.beam.examples;
 
 import com.solace.connector.beam.SolaceIO;
+import com.solace.connector.beam.examples.common.CountWords;
 import com.solace.connector.beam.examples.common.StringMessageMapper;
+import com.solace.connector.beam.examples.common.WordCountToTextFn;
 import com.solace.connector.beam.examples.common.WriteOneFilePerWindow;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import org.apache.beam.sdk.Pipeline;
@@ -26,7 +28,9 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -38,36 +42,16 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * An example that counts words in text, and can run over either unbounded or bounded input
- * collections.
+ * An example that counts the number of each word in the received Solace message payloads, outputs the results to
+ * the provided output location, and can run over either unbounded or bounded input collections.
  *
- * <p>This class, {@link WindowedWordCountSolace}, is the last in a series of four successively more
- * detailed 'word count' examples. First take a look at {@link MinimalWordCount}, {@link WordCount},
- * and {@link DebuggingWordCount}.
- *
- * <p>Basic concepts, also in the MinimalWordCount, WordCount, and DebuggingWordCount examples:
- * Reading text files; counting a PCollection; writing to GCS; executing a Pipeline both locally and
- * using a selected runner; defining DoFns; user-defined PTransforms; defining PipelineOptions.
- *
- * <p>New Concepts:
- *
- * <pre>
- *   1. Unbounded and bounded pipeline input modes
- *   2. Adding timestamps to data
- *   3. Windowing
- *   4. Re-using PTransforms over windowed PCollections
- *   5. Accessing the window of an element
- *   6. Writing data to per-window text files
- * </pre>
- *
- * <p>By default, the examples will run with the {@code DirectRunner}. To change the runner,
- * specify:
+ * <p>By default, the examples will run with the {@code DirectRunner}. To run the pipeline on
+ * Google Dataflow, specify:
  *
  * <pre>{@code
- * --runner=YOUR_SELECTED_RUNNER
+ * --runner=DataflowRunner
  * }</pre>
  * <p>
- * See examples/java/README.md for instructions about how to configure different runners.
  *
  * <p>To execute this pipeline locally, specify a local output file (if using the {@code
  * DirectRunner}) or output prefix on a supported distributed file system.
@@ -75,20 +59,10 @@ import java.util.List;
  * <pre>{@code
  * --output=[YOUR_LOCAL_FILE | YOUR_OUTPUT_PREFIX]
  * }</pre>
- *
- * <p>The input file defaults to a public data set containing the text of of King Lear, by William
- * Shakespeare. You can override it and choose your own input with {@code --inputFile}.
- *
- * <p>By default, the pipeline will do fixed windowing, on 10-minute windows. You can change this
- * interval by setting the {@code --windowSize} parameter, e.g. {@code --windowSize=15} for
- * 15-minute windows.
- *
- * <p>The example will try to cancel the pipeline on the signal to terminate the process (CTRL-C).
  */
 public class WindowedWordCountSolace {
 
-	public interface Options
-			extends WordCount.WordCountOptions {
+	public interface Options extends PipelineOptions {
 		@Description("IP and port of the client appliance. (e.g. -cip=192.168.160.101)")
 		String getCip();
 
@@ -127,7 +101,14 @@ public class WindowedWordCountSolace {
 
 		void setTimeout(int timeoutInMillis);
 
-		;
+		/**
+		 * Set this required option to specify where to write the output.
+		 */
+		@Description("Path of the file to write to")
+		@Validation.Required
+		String getOutput();
+
+		void setOutput(String value);
 	}
 
 	static void runWindowedWordCount(Options options) throws Exception {
@@ -149,7 +130,7 @@ public class WindowedWordCountSolace {
 		PCollection<String> input =
 				pipeline
 						/*
-						 * Read from the Solace JMS Server.
+						 * Read from the Solace PubSub+ broker.
 						 * Reading the message as a String isn't recommended since post-deduplication is required.
 						 */
 						.apply(SolaceIO.read(jcsmpProperties, queues, StringUtf8Coder.of(), new StringMessageMapper())
@@ -157,10 +138,7 @@ public class WindowedWordCountSolace {
 								.withAdvanceTimeoutInMillis(options.getTimeout()));
 
 		/*
-		 * Concept #3: Window into fixed windows. The fixed window size for this example defaults to 1
-		 * minute (you can change this with a command-line option). See the documentation for more
-		 * information on how fixed windows work, and for information on the other types of windowing
-		 * available (e.g., sliding windows).
+		 * Concept #3: Window into fixed windows. The fixed window size for this example defaults to 10 seconds.
 		 */
 		PCollection<String> windowedWords =
 				input.apply(Window.into(FixedWindows.of(Duration.standardSeconds(10))));
@@ -169,7 +147,7 @@ public class WindowedWordCountSolace {
 		 * Concept #4: Re-use our existing CountWords transform that does not have knowledge of
 		 * windows over a PCollection containing windowed values.
 		 */
-		PCollection<KV<String, Long>> wordCounts = windowedWords.apply(new WordCount.CountWords());
+		PCollection<KV<String, Long>> wordCounts = windowedWords.apply(new CountWords());
 
 		/*
 		 * Concept #5: Format the results and write to a sharded file partitioned by window, using a
@@ -178,7 +156,7 @@ public class WindowedWordCountSolace {
 		 */
 		final String output = options.getOutput();
 		wordCounts
-				.apply(MapElements.via(new WordCount.FormatAsTextFn()))
+				.apply(MapElements.via(new WordCountToTextFn()))
 				.apply(new WriteOneFilePerWindow(output, 1));
 
 		PipelineResult result = pipeline.run();
