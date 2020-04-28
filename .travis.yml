@@ -1,49 +1,41 @@
-sudo: false
+dist: xenial
+os: linux
 language: java
 jdk:
   - openjdk8
-before_install:
-  - echo "No pre-installs at this time"
 
 install: true
 
-script:
-  - # Create a new Solace Message Broker in GCP
-  - CURENT_DATE=`date +%s`
-  - echo "{\"name\":\"TestService-${CURENT_DATE}\",\"datacenterId\":\"gcp-us-central1-a\",\"partitionId\":\"default\",\"serviceTypeId\":\"developer\",\"serviceClassId\":\"developer\",\"adminState\":\"start\"}" > data.json
-  - newBroker=`curl --request POST --url "https://console.solace.cloud/api/v0/services"  -H "Authorization:Bearer ${SOLACE_CLOUD_TOKEN}"  --header "Content-Type:application/json" --data @data.json`
-  - echo ${newBroker}
-  - serviceId=`jq '.data.serviceId' <<< $newBroker`
-  - serviceId=${serviceId//\"}
-  - # Validate Solace Message Broker is up and extract credentials
-  - while [ "\"completed\"" != "$(jq .data.adminProgress <<< `curl -H "Authorization:Bearer ${SOLACE_CLOUD_TOKEN}" --url "https://console.solace.cloud/api/v0/services/${serviceId}"`)"  ] ; do echo "`date` Waiting for service up"; sleep 5; done
-  - serviceInfo=`curl -H "Authorization:Bearer ${SOLACE_CLOUD_TOKEN}" --url "https://console.solace.cloud/api/v0/services/${serviceId}"`
-  - SOLACE_URI=`jq '.data.messagingProtocols[] | select(.name == "SMF") | .endPoints[] | select(.name == "SMF") | .uris[0]' <<< $serviceInfo`
-  - SOLACE_URI=${SOLACE_URI//\"}
-  - USERNAME=`jq '.data.messagingProtocols[] | select(.name == "SMF") |.username' <<< $serviceInfo`
-  - USERNAME=${USERNAME//\"}
-  - PASSWORD=`jq '.data.messagingProtocols[] | select(.name == "SMF") |.password' <<< $serviceInfo`
-  - PASSWORD=${PASSWORD//\"}
-  - SOLACE_VPN=`jq .data.msgVpnAttributes.vpnName <<< $serviceInfo`
-  - SOLACE_VPN=${SOLACE_VPN//\"}
-  - MGMT_USERNAME=`jq '.data.managementProtocols[] | select(.name == "SEMP") | .username' <<< $serviceInfo`
-  - MGMT_USERNAME=${MGMT_USERNAME//\"}
-  - MGMT_PASSWORD=`jq '.data.managementProtocols[] | select(.name == "SEMP") | .password' <<< $serviceInfo`
-  - MGMT_PASSWORD=${MGMT_PASSWORD//\"}
-  - MGMT_URI=`jq '.data.managementProtocols[] | select(.name == "SEMP") | .endPoints[] | select(.name == "Secured SEMP Config") | .uris[0]' <<< $serviceInfo`
-  - MGMT_URI=${MGMT_URI//\"}
-  - curl -X POST -H "content-type:application/json" -u ${MGMT_USERNAME}:${MGMT_PASSWORD} ${MGMT_URI}/msgVpns/${SOLACE_VPN}/queues -d '{"queueName":"Q/fx-001","egressEnabled":true,"ingressEnabled":true,"permission":"delete"}'
-  - curl -O https://sftp.solace.com/download/SDKPERF_C_LINUX64
-  - tar -xvf SDKPERF_C_LINUX64
-  - pubSubTools/sdkperf_c -cip=${SOLACE_URI} -cu="${USERNAME}@${SOLACE_VPN}" -cp=${PASSWORD} -mt=persistent -mn=100 -mr=10 -msa=10 -pql=Q/fx-001 -sql=Q/fx-001 | grep "Total Messages"
-  - pubSubTools/sdkperf_c -cip=${SOLACE_URI} -cu="${USERNAME}@${SOLACE_VPN}" -cp=${PASSWORD} -mt=persistent -mn=100 -mr=10 -pfl=README.md -pql=Q/fx-001
-  - mvn -e compile exec:java -Dexec.mainClass=org.apache.beam.examples.SolaceRecordTest -Dexec.args="--output=README10.counts --cip=${SOLACE_URI} --cu=${USERNAME}@${SOLACE_VPN} --cp=${PASSWORD} --sql=Q/fx-001" > build.log 2> output.log &
-  - if [[ ! -z "${DEBUG}" ]]; then sleep 30; cat build.log; fi
-  - while [ ! -s output.log ] ; do echo "`date` Waiting for compile to complete and runner launch"; sleep 5; done
-  - sleep 20
-  - grep -E "SolaceRecordTest - \*\*\*CONTRIBUTING. [0-9]+" output.log
-  - if [[ ! -z "${DEBUG}" ]]; then cat output.log; fi
-after_success: 
+env:
+  global:
+    - CI_CLEANUP=ci/tmp/cleanup.sh
+    - GCP_SECRET_FILENAME=gcp-secret.json
+
+jobs:
+  include:
+    - name: Direct IT
+      script: ci/run-tests.sh 'direct'
+    - name: Dataflow IT
+      # Need to limit these. The full suite would take longer than Travis' max execution time
+      script: ci/run-tests.sh 'dataflow' '-pl beam-sdks-java-io-solace -Dit.test=SolaceIOLifecycleDataflowIT'
+    - name: Direct Samples
+      script: ci/run-samples-tests.sh 'direct'
+
+before_install:
+  - echo "No pre-installs at this time"
+
+before_script:
+  # Get GCP service account credentials
+  - echo $GCP_SECRET | base64 -d > "./${GCP_SECRET_FILENAME}"
+  - export GOOGLE_APPLICATION_CREDENTIALS="${PWD}/${GCP_SECRET_FILENAME}"
+  # Create cleanup script
+  - mkdir -p "${CI_CLEANUP%/*}" && touch "$CI_CLEANUP" && chmod +x "$CI_CLEANUP"
+
+after_success:
   - echo "Test Success - Branch( $TRAVIS_BRANCH ) Pull Request( $TRAVIS_PULL_REQUEST ) Tag( $TRAVIS_TAG )"
+
 after_script:
-  - curl --request DELETE --url "https://console.solace.cloud/api/v0/services/${serviceId}"  -H "Authorization:Bearer ${SOLACE_CLOUD_TOKEN}"  --header 'Content-Type:application/json'
+  - $CI_CLEANUP
+  - rm "$GCP_SECRET_FILENAME"
+  # Need to give some time for output buffer to finish
+  - sleep 10

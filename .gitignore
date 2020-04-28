@@ -4,6 +4,10 @@
 # Eclipse
 .classpath
 
+# Intellij
+.idea
+*.iml
+
 # Maven Build settings
 .project
 .factorypath
@@ -11,3 +15,7 @@
 
 # Maven Artifacts 
 target
+.flattened-pom.xml
+
+# Sample Output
+.temp-beam-*
