@@ -4,7 +4,7 @@
 
 ## Overview
 
-This repository provides a solution which allows applications connected to a Solace Event Mesh to interop with the Apache Beam SDK and it's as a service offering Google Cloud Dataflow.
+This project provides an I/O component which allows for Apache Beam applications running in Google Cloud Dataflow to connect to and receive data from a Solace Event Mesh.
 
 ## Table of contents
 * [Synopsis](#synopsis)
@@ -23,17 +23,17 @@ Consider the following diagram:
 
 ![Architecture Overview](images/Overview.png)
 
-It does not matter if the application communicates with the Solace PubSub+ broker (Appliances, Software and SolaceCloud) via a REST POST or AMQP, JMS or MQTT message, it can be sent streaming to Apache Beam for further processing by it's data runners and further on to other IO connectors such as BigQuery or Apache Cassandra, etc.
+Apache Beam applications can be designed to receive messages from a Solace PubSub+ broker (appliance, software, or Solace Cloud messaging service) regardless of its chosen communication method – whether it be REST POST, AMQP, JMS, or MQTT messages. And by using an Apache Beam data runner, these applications can be deployed onto various services, from which, the data they receive can be further processed by other I/O connectors to interact with other technologies such as Cloud BigQuery, Apache Cassandra, etc.
 
-The Solace Event Mesh is a clustered group of Solace PubSub+ Brokers that transparently, in real-time, route data events to any Service that is part of the Event Mesh.  Solace PubSub+ Brokers are connected to each other as a multi-connected mesh that to individual services (consumers or producers of data events) appears to be a single Event Broker. Event messages are seamlessly transported within the entire Solace Event Mesh regardless of where the event is created and where the process exists that has registered interested in consuming the event. You can read move about the advantages of a Solace event mesh [here.](https://cloud.solace.com/learn/group_howto/ght_event_mesh.html)
+The Solace Event Mesh is a clustered group of Solace PubSub+ Brokers that transparently, in real-time, route data events to any Service that is part of the Event Mesh.  Solace PubSub+ Brokers are connected to each other as a multi-connected mesh that to individual services (consumers or producers of data events) appears to be a single Event Broker. Event messages are seamlessly transported within the entire Solace Event Mesh regardless of where the event is created and where the process exists that has registered interested in consuming the event. You can read move about the advantages of a Solace event mesh [here](https://cloud.solace.com/learn/group_howto/ght_event_mesh.html).
 
-Simply by having a Beam connected Solace PubSub+ broker added to the Event Mesh, the entire Event Mesh becomes aware of the data registration request and will know how to securely route the appropriate events to and from Beam Connected services.
+Simply by having a Beam-connected Solace PubSub+ broker added to the Event Mesh, the entire Event Mesh becomes aware of the data registration request and will know how to securely route the appropriate events to and from Beam-connected services.
 
-To understand the Beam architecture of source and sink IO connectors and runners please review [Beam Documentation.](https://beam.apache.org/documentation/)
+To understand the Beam architecture of source and sink I/O connectors and runners please review [Beam Documentation](https://beam.apache.org/documentation/).
 
-To understand the capabilities of different Beam runners please review the [runner compatibility matrix.](https://beam.apache.org/documentation/runners/capability-matrix/) 
+To understand the capabilities of different Beam runners please review the [runner compatibility matrix](https://beam.apache.org/documentation/runners/capability-matrix/). 
 
-This Beam integration solution allows any event from any service in the Solace Event Mesh [to be captured in:](https://beam.apache.org/documentation/io/built-in/)
+This Beam integration solution allows any event from any service in the Solace Event Mesh [to be captured in](https://beam.apache.org/documentation/io/built-in/):
 * Google BigQuery
 * Google Cloud Bigtable
 * Google Cloud Datastore
@@ -58,7 +58,7 @@ It does not matter which service in the Event Mesh created the event, the events
 
 ## Design
 
-The SolaceIO connector is an UnboundedSource connector providing an infinite data stream.  The connector will connect to a single Solace PubSub+ message broker, bind to and read from a list of [Solace Queues](https://docs.solace.com/Features/Endpoints.htm#Queues).  Each queue binding is a slice for the runner and can be read in parallel.  Messages are acknowledged and deleted from Solace in batches as each checkpoint is committed (client acks). 
+The SolaceIO connector is an UnboundedSource connector providing an unbounded data stream.  The connector will connect to a single Solace PubSub+ broker and will read data from a provided list of [Solace Queues](https://docs.solace.com/Features/Endpoints.htm#Queues).  Each queue binding is contained within their own slice of the Beam runner, from which, each will poll and read from their assigned queues in parallel.  Messages within checkpoints are acknowledged (client acks) and deleted from Solace in batches as each checkpoint is committed by Apache Beam.
 
 ## Usage
 
@@ -86,7 +86,7 @@ compile("com.solace.connector.beam:beam-sdks-java-io-solace:1.0.+")
 
 
 ### Reading from Solace PubSub+
-To instantiate a SolaceIO connector a PCollection must be created within the context of a pipeline.  Beam [programming-guide](https://beam.apache.org/documentation/programming-guide/) explains this concept.
+To instantiate a SolaceIO connector, a PCollection must be created within the context of a pipeline.  Beam [programming-guide](https://beam.apache.org/documentation/programming-guide/) explains this concept.
 
 ```java
 Pipeline pipeline = Pipeline.create(PipelineOptions options);
@@ -104,27 +104,35 @@ PCollection<SolaceTextRecord> input = pipeline.apply(
 
 | Parameter              | Default          | Description  |
 |------------------------|------------------|--------------|
-| jcsmpProperties        | _Requires input_ | Solace PubSub+ connection config |
-| queues                 | _Requires input_ | List of queue names, must be pre-configured |
-| inboundMessageMapper   | _Requires input_ | The mapper object used for converting Solace messages to elements of type T. |
-| coder                  | _Requires input_ | Defines how to encode and decode PCollection elements of type T. |
-| useSenderTimestamp     | false            | Use Sender timestamp to determine freshness of data, otherwise use Beam receive time |
-| advanceTimeoutInMillis | 100              | Message poll timeout |
+| jcsmpProperties        | _Requires input_ | Solace PubSub+ connection config. |
+| queues                 | _Requires input_ | List of queue names to consume from. These queues must be pre-configured. Add duplicate entries to this list to have multiple consumers reading from the same queue. |
+| inboundMessageMapper   | _Requires input_ | The mapper object used for converting Solace messages to elements of the resulting PCollection. |
+| coder                  | _Requires input_ | Defines how to encode and decode the elements of the resulting PCollection. |
+| useSenderTimestamp     | false            | Use sender timestamps to determine the freshness of data, otherwise use the time at which Beam receives the data. |
+| advanceTimeoutInMillis | 100              | Message poll timeout. If the poll timeout is exceeded, then it will be treated as if no messages were available at that time. |
 | maxNumRecords          | Long.MAX_VALUE   | Max number of records received by the SolaceIO.Read. When this max number of records is lower than Long.MAX_VALUE, the SolaceIO.Read will provide a bounded PCollection. |
-| maxReadTime            | null             | Max read time (duration) while the SolaceIO.Read will receive messages. When this max read time is not null, the SolaceIO.Read will provide a bounded PCollection. |
+| maxReadTime            | null             | Max read time (duration) for which the SolaceIO.Read will receive messages. When this max read time is not null, the SolaceIO.Read will provide a bounded PCollection. |
 
 
 ### PubSub+ Broker Configuration for Apache Beam
 
-#### Allow Apache Beam to Detect Message Backlog
-To detect the amount of backlog that exists on a queue the Beam SolaceIO is consuming from, it sends a SEMP over the message bus request to the broker.  SEMP over the message bus show commands needs to be enabled as per these instructions: https://docs.solace.com/SEMP/Using-Legacy-SEMP.htm#Configur
+#### Allow Apache Beam to Detect Message Backlog to Scale Workers
+
+Apache Beam uses the message backlog as one of its parameters to determine whether or not to scale its workers. To detect the amount of backlog that exists for a particular queue, SolaceIO sends a SEMP-over-the-message-bus request to the broker. But for it to be able to do this, [show commands for SEMP-over-the-message-bus must be enabled](https://docs.solace.com/SEMP/Using-Legacy-SEMP.htm#Configur).
 
 #### Get More Accurate Latency Measurements
-By default, the latency measurement is taken from the time the message enters Dataflow and does not take into account the time sitting in a Solace queue waiting to be processed.  If messages are published with sender timestamps and useSenderTimestamp is enabled in the SolaceIO, then end to end latencies will be used and reported.   For java clients the JCSMP property GENERATE_SEND_TIMESTAMPS will ensure each message is sent with a timestamp.
 
-#### Prevent Staggered Message Consumption
+By default, the latency measurement for a particular message is taken at the time that the message is read by SolaceIO. It does not take into account the time that this message is sitting in a Solace queue waiting to be processed.
 
-Messages consumed by Apache Beam are acknowledged when the Beam runner decides that it is safe to do so. This has potential to cause the message consumption rate to stagger if the queues' configured maximum delivered unacknowledged messages per flow is too low. To prevent this, this setting should be configured to be equal to at least your required nominal message rate multiplied by your pipeline's window size.
+But if messages are published with sender timestamps and useSenderTimestamp is enabled for SolaceIO, then end-to-end latencies will be used and reported. For publishing java clients, the JCSMP property, [GENERATE_SEND_TIMESTAMPS](https://docs.solace.com/API-Developer-Online-Ref-Documentation/java/com/solacesystems/jcsmp/JCSMPProperties.html#GENERATE_SEND_TIMESTAMPS), will ensure that each outbound message is sent with a timestamp.
+
+#### Get a More Consistent Message Consumption Rate
+
+Messages consumed by Apache Beam are acknowledged when the Beam runner decides that it is safe to do so. This has potential to cause message consumption rates to stagger if the queues' maximum delivered unacknowledged messages per flow is too low. To prevent this, this setting should be configured to be equal to at least your required nominal message rate multiplied by your pipeline's window size.
+
+Here is the link to the instructions for configuring a queue's maximum delivered unacknowledged messages per flow:
+
+https://docs.solace.com/Configuring-and-Managing/Configuring-Queues.htm#managing_guaranteed_messaging_1810020758_455709
 
 ## Sample Walkthrough
 
@@ -143,7 +151,7 @@ Here are two ways to quickly get started if you don't already have a PubSub+ ins
 
 ### Configure a Solace PubSub+ VM for Apache Beam
 
-1. Enable show commands for SEMP over the message bus
+1. Enable show commands for SEMP-over-the-message-bus
 1. Create your queues
     * For the sake of this tutorial, lets say you created two queues: `Q/fx-001` and `Q/fx-002`
 
@@ -153,7 +161,7 @@ Skip this section if you will be running the [SolaceProtoBuffRecordTest](#solace
 
 1. Download [SDKPerf](https://solace.com/downloads/#other-software-other) and extract the archive
     * For the sake of this tutorial, lets say you downloaded C SDKPerf
-1. Load 100 10-byte test messages onto your queues:
+1. Load 100 test messages onto your queues:
     ```shell script
     sdkperf_c -cip=${SOLACE_URI} -cu="${USERNAME}@${SOLACE_VPN}" -cp=${PASSWORD} -mt=persistent -mn=100 -mr=10 -pfl=README.md -pql=Q/fx-001,Q/fx-002
     ```
@@ -171,7 +179,7 @@ The [SolaceRecordTest](solace-apache-beam-samples/src/main/java/com/solace/conne
        -Dexec.args="--sql=Q/fx-001,Q/fx-002 --cip=${SOLACE_URI} --cu=${SOLACE_USERNAME} --cp=${SOLACE_PASSWORD} --vpn=${SOLACE_VPN}" \
        > build.log 2> output.log &
     ```
-1. Validate the messages where received and acknowledged
+1. Verify the messages were received and acknowledged:
     ```shell script
     grep -E "SolaceRecordTest - \*\*\*CONTRIBUTING. [0-9]+" output.log
     ```
@@ -188,7 +196,7 @@ The [WindowedWordCountSolace](solace-apache-beam-samples/src/main/java/com/solac
        -Dexec.mainClass=com.solace.connector.beam.examples.WindowedWordCountSolace \
        -Dexec.args="--runner=DataflowRunner --autoscalingAlgorithm=THROUGHPUT_BASED --numWorkers=2 --sql=Q/fx-001,Q/fx-002 --project=${GCP_PROJECT} --gcpTempLocation=${GOOGLE_STORAGE_TMP} --stagingLocation=${GOOGLE_STORAGE_STAGING} --output=${GOOGLE_STORAGE_OUTPUT} --cip=${SOLACE_URI} --cu=${SOLACE_USERNAME} --cp=${SOLACE_PASSWORD} --vpn=${SOLACE_VPN}"
     ```
-1. Validate the messages where received and acknowledged by going to `$GOOGLE_STORAGE_OUTPUT` and verify that files were outputted into there.
+1. Verify that the messages were received and acknowledged by going to `$GOOGLE_STORAGE_OUTPUT` and verify that files were outputted into there.
 
 #### SolaceProtoBuffRecordTest
 
@@ -200,6 +208,7 @@ The [SolaceProtoBuffRecordTest](solace-apache-beam-samples/src/main/java/com/sol
        -Dexec.mainClass=com.solace.connector.beam.examples.SolaceProtoBuffRecordTest \
        -Dexec.args="--sql=Q/fx-001,Q/fx-002 --cip=${SOLACE_URI} --cu=${SOLACE_USERNAME} --cp=${SOLACE_PASSWORD} --vpn=${SOLACE_VPN}"
     ```
+1. Verify that the messages are being outputted in the log.
 
 ## Contributing
 
