@@ -20,7 +20,7 @@
 	<parent>
 		<groupId>com.solace.connector.beam</groupId>
 		<artifactId>solace-apache-beam-parent</artifactId>
-		<version>1.0.0</version>
+		<version>1.1.0-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>solace-apache-beam-samples</artifactId>
@@ -31,7 +31,7 @@
 
 	<properties>
 		<beam.version>2.18.0</beam.version>
-		<solace-beam.version>1.0.0</solace-beam.version>
+		<solace-beam.version>1.1.0-SNAPSHOT</solace-beam.version>
 
 		<bigquery.version>v2-rev374-1.23.0</bigquery.version>
 		<google-clients.version>1.30.2</google-clients.version>
