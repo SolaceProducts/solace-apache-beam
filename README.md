@@ -1,6 +1,6 @@
 [![Build Status](https://travis-ci.org/SolaceProducts/solace-apache-beam.svg?branch=master)](https://travis-ci.org/SolaceProducts/solace-apache-beam)
 
-# Apache Beam Solace PubSub+ I/O
+# Apache Beam Solace I/O
 
 ## Overview
 
@@ -70,13 +70,13 @@ Here is how to include the SolaceIO connector in your project using Gradle and M
 
 #### Using it with Gradle
 ```groovy
-// Apache Beam Solace PubSub+ I/O
+// Apache Beam Solace I/O
 compile("com.solace.connector.beam:beam-sdks-java-io-solace:1.0.+")
 ```
 
 #### Using it with Maven
 ```xml
-<!-- Apache Beam Solace PubSub+ I/O -->
+<!-- Apache Beam Solace I/O -->
 <dependency>
   <groupId>com.solace.connector.beam</groupId>
   <artifactId>beam-sdks-java-io-solace</artifactId>
