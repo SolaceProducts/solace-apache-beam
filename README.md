@@ -1,6 +1,6 @@
 [![Build Status](https://travis-ci.org/SolaceProducts/solace-apache-beam.svg?branch=master)](https://travis-ci.org/SolaceProducts/solace-apache-beam)
 
-# Apache Beam Solace I/O
+# Solace PubSub+ Connector for Beam: I/O
 
 ## Overview
 
@@ -23,7 +23,7 @@ Consider the following diagram:
 
 ![Architecture Overview](images/Overview.png)
 
-Using SolaceIO, Apache Beam applications can receive messages from a Solace PubSub+ broker (appliance, software, or Solace Cloud messaging service) regardless of how messages were initially sent to the broker – whether it be REST POST, AMQP, JMS, or MQTT messages. And by using an Apache Beam data runner, these applications can be deployed onto various services, from which, the data they receive can be further processed by other I/O connectors to interact with other technologies such as Cloud BigQuery, Apache Cassandra, etc.
+Using the Beam I/O Connector, Apache Beam applications can receive messages from a Solace PubSub+ broker (appliance, software, or Solace Cloud messaging service) regardless of how messages were initially sent to the broker – whether it be REST POST, AMQP, JMS, or MQTT messages. And by using an Apache Beam data runner, these applications can be deployed onto various services, from which, the data they receive can be further processed by other I/O connectors to interact with other technologies such as Cloud BigQuery, Apache Cassandra, etc.
 
 The Solace Event Mesh is a clustered group of Solace PubSub+ Brokers that transparently, in real-time, route data events to any Service that is part of the Event Mesh.  Solace PubSub+ Brokers are connected to each other as a multi-connected mesh that to individual services (consumers or producers of data events) appears to be a single Event Broker. Event messages are seamlessly transported within the entire Solace Event Mesh regardless of where the event is created and where the process exists that has registered interested in consuming the event. You can read move about the advantages of a Solace event mesh [here](https://cloud.solace.com/learn/group_howto/ght_event_mesh.html).
 
@@ -58,7 +58,7 @@ It does not matter which service in the Event Mesh created the event, the events
 
 ## Design
 
-The SolaceIO connector is an UnboundedSource connector providing an unbounded data stream.  The connector will connect to a single Solace PubSub+ broker and will read data from a provided list of [Solace Queues](https://docs.solace.com/Features/Endpoints.htm#Queues).  Each queue binding is contained within their own slice of the Beam runner, from which, each will poll and read from their assigned queues in parallel.  Messages within checkpoints are acknowledged (client acks) and deleted from Solace in batches as each checkpoint is committed by Apache Beam.
+The Beam I/O Connector is an UnboundedSource connector providing an unbounded data stream.  The connector will connect to a single Solace PubSub+ broker and will read data from a provided list of [Solace Queues](https://docs.solace.com/Features/Endpoints.htm#Queues).  Each queue binding is contained within their own slice of the Beam runner, from which, each will poll and read from their assigned queues in parallel.  Messages within checkpoints are acknowledged (client acks) and deleted from Solace in batches as each checkpoint is committed by Apache Beam.
 
 ## Usage
 
@@ -66,17 +66,17 @@ The SolaceIO connector is an UnboundedSource connector providing an unbounded da
 
 The releases from this project are hosted in [Maven Central](https://mvnrepository.com/artifact/com.solace.connector.beam/beam-sdks-java-io-solace).
 
-Here is how to include the SolaceIO connector in your project using Gradle and Maven.
+Here is how to include the Beam I/O Connector in your project using Gradle and Maven.
 
 #### Using it with Gradle
 ```groovy
-// Apache Beam Solace I/O
+// Solace PubSub+ Connector for Beam: I/O
 compile("com.solace.connector.beam:beam-sdks-java-io-solace:1.0.+")
 ```
 
 #### Using it with Maven
 ```xml
-<!-- Apache Beam Solace I/O -->
+<!-- Solace PubSub+ Connector for Beam: I/O -->
 <dependency>
   <groupId>com.solace.connector.beam</groupId>
   <artifactId>beam-sdks-java-io-solace</artifactId>
@@ -86,7 +86,7 @@ compile("com.solace.connector.beam:beam-sdks-java-io-solace:1.0.+")
 
 
 ### Reading from Solace PubSub+
-To instantiate a SolaceIO connector, a PCollection must be created within the context of a pipeline.  Beam [programming-guide](https://beam.apache.org/documentation/programming-guide/) explains this concept.
+To instantiate a Beam I/O Connector, a PCollection must be created within the context of a pipeline.  Beam [programming-guide](https://beam.apache.org/documentation/programming-guide/) explains this concept.
 
 ```java
 Pipeline pipeline = Pipeline.create(PipelineOptions options);
@@ -118,13 +118,13 @@ PCollection<SolaceTextRecord> input = pipeline.apply(
 
 #### Allow Apache Beam to Detect Message Backlog to Scale Workers
 
-Apache Beam uses the message backlog as one of its parameters to determine whether or not to scale its workers. To detect the amount of backlog that exists for a particular queue, SolaceIO sends a SEMP-over-the-message-bus request to the broker. But for it to be able to do this, [show commands for SEMP-over-the-message-bus must be enabled](https://docs.solace.com/SEMP/Using-Legacy-SEMP.htm#Configur).
+Apache Beam uses the message backlog as one of its parameters to determine whether or not to scale its workers. To detect the amount of backlog that exists for a particular queue, the Beam I/O Connector sends a SEMP-over-the-message-bus request to the broker. But for it to be able to do this, [show commands for SEMP-over-the-message-bus must be enabled](https://docs.solace.com/SEMP/Using-Legacy-SEMP.htm#Configur).
 
 #### Get More Accurate Latency Measurements
 
-By default, the latency measurement for a particular message is taken at the time that the message is read by SolaceIO. It does not take into account the time that this message is sitting in a Solace queue waiting to be processed.
+By default, the latency measurement for a particular message is taken at the time that the message is read by the Beam I/O Connector. It does not take into account the time that this message is sitting in a Solace queue waiting to be processed.
 
-But if messages are published with sender timestamps and useSenderTimestamp is enabled for SolaceIO, then end-to-end latencies will be used and reported. For publishing java clients, the JCSMP property, [GENERATE_SEND_TIMESTAMPS](https://docs.solace.com/API-Developer-Online-Ref-Documentation/java/com/solacesystems/jcsmp/JCSMPProperties.html#GENERATE_SEND_TIMESTAMPS), will ensure that each outbound message is sent with a timestamp.
+But if messages are published with sender timestamps and useSenderTimestamp is enabled for the Beam I/O Connector, then end-to-end latencies will be used and reported. For publishing java clients, the JCSMP property, [GENERATE_SEND_TIMESTAMPS](https://docs.solace.com/API-Developer-Online-Ref-Documentation/java/com/solacesystems/jcsmp/JCSMPProperties.html#GENERATE_SEND_TIMESTAMPS), will ensure that each outbound message is sent with a timestamp.
 
 #### Get a More Consistent Message Consumption Rate
 
