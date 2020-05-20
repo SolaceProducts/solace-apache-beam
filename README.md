@@ -62,6 +62,10 @@ The Beam I/O Connector is an UnboundedSource connector providing an unbounded da
 
 ## Usage
 
+### Video Tutorial
+
+[Getting Started With PubSub+ Connector for Beam: I/O](https://solace.com/resources/hybrid-cloud/getting-started-pubsub-connector-beam)
+
 ### Updating Your Build
 
 The releases from this project are hosted in [Maven Central](https://mvnrepository.com/artifact/com.solace.connector.beam/beam-sdks-java-io-solace).
