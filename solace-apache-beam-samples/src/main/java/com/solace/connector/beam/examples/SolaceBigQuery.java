@@ -110,7 +110,7 @@ public class SolaceBigQuery {
 	}
 
 
-	private static void kdbBigQuery(Options options) throws Exception {
+	private static void WritetoBigQuery(Options options) throws Exception {
 
 		List<String> queues = Arrays.asList(options.getSql().split(","));
 		boolean useSenderMsgId = options.getSmi();
@@ -219,7 +219,7 @@ public class SolaceBigQuery {
 		Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
 
 		try {
-			SolaceBigQuery(options);
+			WritetoBigQuery(options);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
