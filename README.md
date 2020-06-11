@@ -310,15 +310,6 @@ The [SolaceBigQuery](solace-apache-beam-samples/src/main/java/com/solace/connect
  }
 ]
 ```
-1. Modify SolaceBigQuery sample to add details about your table (project id, dataset id, and table id) in the following section:
-```java
-TableReference tableSpec =
-                new TableReference()
-                        .setProjectId("<project_id>")
-                        .setDatasetId("<dataset_id>")
-                        .setTableId("<table_id>");
-```
-
 1. Run the SolaceBigQuery sample on Google Dataflow:
 ```shell script
 mvn compile exec:java -Dexec.mainClass=com.solace.connector.beam.examples.SolaceBeamBigQuery -Dexec.args="--sql=Q/fx-001 --cip=${SOLACE_URI} --cu=${SOLACE_USERNAME} --cp=${SOLACE_PASSWORD} --vpn=${SOLACE_VPN} --project=${GCP_PROJECT} --bigQueryProject=${BIGQUERY_PROJECT} --bigQueryDataset=${BIGQUERY_DATASET} --bigQueryTable=${BIGQUERY_TABLE} --tempLocation=${GOOGLE_STORAGE_TMP} --workerMachineType=n1-standard-2 --runner=DataflowRunner --autoscalingAlgorithm=THROUGHPUT_BASED --maxNumWorkers=4 --stagingLocation=${GOOGLE_STORAGE_STAGING}" -Pdataflow-runner
