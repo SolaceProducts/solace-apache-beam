@@ -224,7 +224,92 @@ The [SolaceProtoBuffRecordTest](solace-apache-beam-samples/src/main/java/com/sol
 
 The [SolaceBigQuery](solace-apache-beam-samples/src/main/java/com/solace/connector/beam/examples/SolaceBigQuery.java) example receives a message from PubSub+ queue, transforms it, and then writes it to a BigQuery table. 
 
-1. Create a BigQuery table with appropriate schema.
+1. Create a BigQuery table with appropriate schema:
+```
+[
+ {
+ 
+   "name": "date",
+   "type": "STRING",
+   "mode": "NULLABLE"
+ },
+ {
+   "name": "sym",
+   "type": "STRING",
+   "mode": "NULLABLE"
+ },
+ {
+   "name": "time",
+   "type": "STRING",
+   "mode": "NULLABLE"
+ },
+ {
+   "name": "lowAskSize",
+   "type": "INTEGER",
+   "mode": "NULLABLE"
+ },
+ {
+   "name": "highAskSize",
+   "type": "INTEGER",
+   "mode": "NULLABLE"
+ },
+ {
+   "name": "lowBidPrice",
+   "type": "FLOAT",
+   "mode": "NULLABLE"
+ },
+ {
+   "name": "highBidPrice",
+   "type": "FLOAT",
+   "mode": "NULLABLE"
+ },
+ {
+   "name": "lowBidSize",
+   "type": "INTEGER",
+   "mode": "NULLABLE"
+ },
+ {
+   "name": "highBidSize",
+   "type": "INTEGER",
+   "mode": "NULLABLE"
+ },
+ {
+   "name": "lowTradePrice",
+   "type": "FLOAT",
+   "mode": "NULLABLE"
+ },
+ {
+   "name": "highTradePrice",
+   "type": "FLOAT",
+   "mode": "NULLABLE"
+ },
+ {
+   "name": "lowTradeSize",
+   "type": "INTEGER",
+   "mode": "NULLABLE"
+ },
+ {
+   "name": "highTradeSize",
+   "type": "INTEGER",
+   "mode": "NULLABLE"
+ },
+ {
+   "name": "lowAskPrice",
+   "type": "FLOAT",
+   "mode": "NULLABLE"
+ },
+ {
+   "name": "highAskPrice",
+   "type": "FLOAT",
+   "mode": "NULLABLE"
+ },
+ {
+   "name": "vwap",
+   "type": "FLOAT",
+   "mode": "NULLABLE"
+ }
+]
+```
 1. Modify SolaceBigQuery sample to add details about your table (project id, dataset id, and table id) in the following section:
 ```java
 TableReference tableSpec =
