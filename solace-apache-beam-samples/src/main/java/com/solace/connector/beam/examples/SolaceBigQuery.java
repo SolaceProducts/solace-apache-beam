@@ -107,6 +107,24 @@ public class SolaceBigQuery {
 
 		void setTimeout(int timeoutInMillis);
 
+		@Validation.Required
+        @Description("The name of the BigQuery project.")
+        String getBigQueryProject();
+
+        void setBigQueryProject(String value);
+
+        @Validation.Required
+        @Description("The name of BigQuery dataset which has the table you want to write data to.")
+        String getBigQueryDataset();
+
+        void setBigQueryDataset(String value);
+
+        @Validation.Required
+        @Description("The name of BigQuery table you want to write data to.")
+        String getBigQueryTable();
+
+        void setBigQueryTable(String value);
+
 	}
 
 
@@ -135,11 +153,11 @@ public class SolaceBigQuery {
 								new TableFieldSchema().setName("vwap").setType("FLOAT").setMode("NULLABLE")));
 
 		// Insert information about your table (projectId, datasetId, and tableId)
-		TableReference tableSpec =
-				new TableReference()
-						.setProjectId("<project_id>")
-						.setDatasetId("<dataset_id>")
-						.setTableId("<table_id>");
+        TableReference tableSpec =
+                new TableReference()
+                        .setProjectId(options.getBigQueryProject())
+                        .setDatasetId(options.getBigQueryDataset())
+                        .setTableId(options.getBigQueryTable());
 
 		Pipeline pipeline = Pipeline.create(options);
 
