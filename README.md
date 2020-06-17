@@ -170,6 +170,12 @@ Skip this section if you will be running the [SolaceProtoBuffRecordTest](#solace
     sdkperf_c -cip=${SOLACE_URI} -cu="${USERNAME}@${SOLACE_VPN}" -cp=${PASSWORD} -mt=persistent -mn=100 -mr=10 -pfl=README.md -pql=Q/fx-001,Q/fx-002
     ```
 
+For [SolaceBigQuery](#solacebigquery) sample, to be able to use it as it is, you need to use payload of a certain schema such as:
+```
+[{"date":"2020-06-07","sym":"DUMMY","time":"22:58","lowAskSize":20,"highAskSize":790,"lowBidPrice":43.13057,"highBidPrice":44.95833,"lowBidSize":60,"highBidSize":770,"lowTradePrice":43.51274,"highTradePrice":45.41246,"lowTradeSize":0,"highTradeSize":480,"lowAskPrice":43.67592,"highAskPrice":45.86658,"vwap":238.0331}]
+```
+
+
 ### Run a Sample
 
 #### SolaceRecordTest
@@ -213,6 +219,103 @@ The [SolaceProtoBuffRecordTest](solace-apache-beam-samples/src/main/java/com/sol
        -Dexec.args="--sql=Q/fx-001,Q/fx-002 --cip=${SOLACE_URI} --cu=${SOLACE_USERNAME} --cp=${SOLACE_PASSWORD} --vpn=${SOLACE_VPN}"
     ```
 1. Verify that the messages are being outputted in the log.
+
+#### SolaceBigQuery
+
+The [SolaceBigQuery](solace-apache-beam-samples/src/main/java/com/solace/connector/beam/examples/SolaceBigQuery.java) example receives a message from PubSub+ queue, transforms it, and then writes it to a BigQuery table. 
+
+1. Create a BigQuery table with appropriate schema:
+```
+[
+ {
+ 
+   "name": "date",
+   "type": "STRING",
+   "mode": "NULLABLE"
+ },
+ {
+   "name": "sym",
+   "type": "STRING",
+   "mode": "NULLABLE"
+ },
+ {
+   "name": "time",
+   "type": "STRING",
+   "mode": "NULLABLE"
+ },
+ {
+   "name": "lowAskSize",
+   "type": "INTEGER",
+   "mode": "NULLABLE"
+ },
+ {
+   "name": "highAskSize",
+   "type": "INTEGER",
+   "mode": "NULLABLE"
+ },
+ {
+   "name": "lowBidPrice",
+   "type": "FLOAT",
+   "mode": "NULLABLE"
+ },
+ {
+   "name": "highBidPrice",
+   "type": "FLOAT",
+   "mode": "NULLABLE"
+ },
+ {
+   "name": "lowBidSize",
+   "type": "INTEGER",
+   "mode": "NULLABLE"
+ },
+ {
+   "name": "highBidSize",
+   "type": "INTEGER",
+   "mode": "NULLABLE"
+ },
+ {
+   "name": "lowTradePrice",
+   "type": "FLOAT",
+   "mode": "NULLABLE"
+ },
+ {
+   "name": "highTradePrice",
+   "type": "FLOAT",
+   "mode": "NULLABLE"
+ },
+ {
+   "name": "lowTradeSize",
+   "type": "INTEGER",
+   "mode": "NULLABLE"
+ },
+ {
+   "name": "highTradeSize",
+   "type": "INTEGER",
+   "mode": "NULLABLE"
+ },
+ {
+   "name": "lowAskPrice",
+   "type": "FLOAT",
+   "mode": "NULLABLE"
+ },
+ {
+   "name": "highAskPrice",
+   "type": "FLOAT",
+   "mode": "NULLABLE"
+ },
+ {
+   "name": "vwap",
+   "type": "FLOAT",
+   "mode": "NULLABLE"
+ }
+]
+```
+1. Run the SolaceBigQuery sample on Google Dataflow:
+```shell script
+mvn compile exec:java -Dexec.mainClass=com.solace.connector.beam.examples.SolaceBigQuery -Dexec.args="--sql=Q/fx-001 --cip=${SOLACE_URI} --cu=${SOLACE_USERNAME} --cp=${SOLACE_PASSWORD} --vpn=${SOLACE_VPN} --project=${GCP_PROJECT} --bigQueryProject=${BIGQUERY_PROJECT} --bigQueryDataset=${BIGQUERY_DATASET} --bigQueryTable=${BIGQUERY_TABLE} --tempLocation=${GOOGLE_STORAGE_TMP} --workerMachineType=n1-standard-2 --runner=DataflowRunner --autoscalingAlgorithm=THROUGHPUT_BASED --maxNumWorkers=4 --stagingLocation=${GOOGLE_STORAGE_STAGING}" -Pdataflow-runner
+```
+
+1. Verify that the messages were written to your BigQuery table.
 
 ## Contributing
 
