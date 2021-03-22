@@ -23,10 +23,7 @@ elif [[ -z "$SOLACE_MGMT_PASSWORD" ]]; then
 elif [[ -z "$GOOGLE_APPLICATION_CREDENTIALS" ]]; then
   >&2 echo no GOOGLE_APPLICATION_CREDENTIALS env found
   exit 1
-elif [[ -z "$DATAFLOW_PROJECT" ]]; then
-  >&2 echo no DATAFLOW_PROJECT env found
-exit 1
-  elif [[ -z "$DATAFLOW_TEMP_ROOT" ]]; then
+elif [[ -z "$DATAFLOW_TEMP_ROOT" ]]; then
   >&2 echo no DATAFLOW_TEMP_ROOT env found
   exit 1
 fi
