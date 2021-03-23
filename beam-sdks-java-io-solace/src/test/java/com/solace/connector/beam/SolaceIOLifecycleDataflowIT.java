@@ -113,7 +113,7 @@ public class SolaceIOLifecycleDataflowIT extends ITBase {
 		try {
 			pipelineResult = testPipeline.run();
 			GoogleDataflowUtil.waitForJobToStart(pipelineOptions.as(DataflowPipelineOptions.class));
-			sempOps.waitForQueuesEmpty(testJcsmpProperties, testQueues, 120);
+			sempOps.waitForQueuesEmpty(testJcsmpProperties, testQueues, TimeUnit.MINUTES.toSeconds(5));
 			verifyAllMessagesAreReceivedAndProcessed(outputGSUrlPrefix, numMsgsPerQueue);
 		} finally {
 			if (pipelineResult != null) {
@@ -195,7 +195,7 @@ public class SolaceIOLifecycleDataflowIT extends ITBase {
 						new MsgVpnQueue().maxDeliveredUnackedMsgsPerFlow(defaultMaxDeliveredUnackedMsgs));
 			}
 
-			sempOps.waitForQueuesEmpty(testJcsmpProperties, testQueues, 120);
+			sempOps.waitForQueuesEmpty(testJcsmpProperties, testQueues, TimeUnit.MINUTES.toSeconds(5));
 			verifyAllMessagesAreReceivedAndProcessed(outputGSUrlPrefix, numMsgsPerQueue);
 		} finally {
 			if (pipelineResult1 != null) {
