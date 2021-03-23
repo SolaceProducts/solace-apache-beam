@@ -50,7 +50,7 @@ testRecordApp() {
       2>&1 | tee output.log &
   echo $! > "$RUNNING_PID"
 
-  for attempts in {1..30}; do
+  for attempts in {1..120}; do
     if [[ -s output.log ]]; then
       if grep -q 'BUILD FAILURE' output.log; then
         cat output.log
@@ -61,7 +61,7 @@ testRecordApp() {
       fi
     fi
 
-    if [[ "$attempts" == "30" ]]; then
+    if [[ "$attempts" == "120" ]]; then
       cat output.log
       >&2 echo Timed out while testing SolaceRecordTest
       exit 1
