@@ -38,7 +38,11 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.xml.sax.SAXException;
 
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.TransformerException;
+import javax.xml.xpath.XPathExpressionException;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -362,7 +366,8 @@ public class SolaceIOLifecycleDataflowIT extends ITBase {
 		return new HashSet<>(testQueues).size();
 	}
 
-	private void populateQueue(String queueName, long numMsgs) throws JCSMPException {
+	private void populateQueue(String queueName, long numMsgs) throws JCSMPException, ParserConfigurationException,
+			SAXException, IOException, XPathExpressionException, TransformerException {
 		Queue queue = JCSMPFactory.onlyInstance().createQueue(queueName);
 		LOG.info(String.format("Publishing %s messages to queue %s", numMsgs, queue.getName()));
 		for (int i = 0; i < numMsgs; i++) {
@@ -371,6 +376,8 @@ public class SolaceIOLifecycleDataflowIT extends ITBase {
 			msg.writeAttachment(payload.getBytes(StandardCharsets.UTF_8));
 			producer.send(msg, queue);
 		}
+		assertEquals(String.format("All messages weren't published to queue %s", queueName), numMsgs,
+				sempOps.getQueueMessageCount(testJcsmpProperties, queueName));
 	}
 
 	private void verifyAllMessagesAreReceivedAndProcessed(String outputGSUrlPrefix, int numMsgsPerQueue)
