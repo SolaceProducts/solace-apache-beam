@@ -9,6 +9,7 @@ import com.solace.connector.beam.test.util.GoogleDataflowUtil;
 import com.solace.connector.beam.test.util.GoogleStorageUtil;
 import com.solace.semp.v2.config.model.MsgVpnQueue;
 import com.solacesystems.jcsmp.BytesXMLMessage;
+import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.EndpointProperties;
 import com.solacesystems.jcsmp.JCSMPException;
 import com.solacesystems.jcsmp.JCSMPFactory;
@@ -38,11 +39,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.xml.sax.SAXException;
 
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.TransformerException;
-import javax.xml.xpath.XPathExpressionException;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -53,12 +50,15 @@ import java.util.Scanner;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
@@ -366,18 +366,37 @@ public class SolaceIOLifecycleDataflowIT extends ITBase {
 		return new HashSet<>(testQueues).size();
 	}
 
-	private void populateQueue(String queueName, long numMsgs) throws JCSMPException, ParserConfigurationException,
-			SAXException, IOException, XPathExpressionException, TransformerException {
+	private void populateQueue(String queueName, long numMsgs) throws JCSMPException, InterruptedException {
 		Queue queue = JCSMPFactory.onlyInstance().createQueue(queueName);
+		AtomicLong numDelivered = new AtomicLong(0);
+		AtomicReference<JCSMPException> sendException = new AtomicReference<>();
 		LOG.info(String.format("Publishing %s messages to queue %s", numMsgs, queue.getName()));
 		for (int i = 0; i < numMsgs; i++) {
 			String payload = String.format("%s - %s", queueName, i);
 			BytesXMLMessage msg = JCSMPFactory.onlyInstance().createMessage(BytesXMLMessage.class);
 			msg.writeAttachment(payload.getBytes(StandardCharsets.UTF_8));
+			msg.setDeliveryMode(DeliveryMode.PERSISTENT);
+			CallbackCorrelationKey correlationKey = new CallbackCorrelationKey();
+			correlationKey.setOnSuccess(numDelivered::incrementAndGet);
+			correlationKey.setOnFailure((e, timeout) -> sendException.set(e));
+			msg.setCorrelationKey(correlationKey);
 			producer.send(msg, queue);
 		}
+
+		final long deliveryWaitExpiry = TimeUnit.MINUTES.toMillis(5) + System.currentTimeMillis();
+		while (numDelivered.get() < numMsgs && sendException.get() == null) {
+			long realTimeout = Math.min(deliveryWaitExpiry - System.currentTimeMillis(), 5000);
+			if (realTimeout <= 0) {
+				fail(String.format("Timed out while waiting for %s messages to be delivered to queue %s, only got %s",
+						numMsgs, queueName, numDelivered.get()));
+			}
+			LOG.info(String.format("%s of %s messages sent to queue %s", numDelivered.get(), numMsgs, queueName));
+			Thread.sleep(realTimeout);
+		}
+		assertNull(String.format("Failed to send message to queue %s", queueName), sendException.get());
 		assertEquals(String.format("All messages weren't published to queue %s", queueName), numMsgs,
-				sempOps.getQueueMessageCount(testJcsmpProperties, queueName));
+				numDelivered.get());
+		LOG.info(String.format("%s messages successfully sent to queue %s", numMsgs, queueName));
 	}
 
 	private void verifyAllMessagesAreReceivedAndProcessed(String outputGSUrlPrefix, int numMsgsPerQueue)
