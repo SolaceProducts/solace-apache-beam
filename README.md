@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/SolaceProducts/solace-apache-beam.svg?branch=master)](https://travis-ci.org/SolaceProducts/solace-apache-beam)
+[![Actions Status](https://github.com/SolaceProducts/solace-apache-beam/workflows/build/badge.svg?branch=master)](https://github.com/SolaceProducts/solace-apache-beam/actions?query=workflow%3Abuild+branch%3Amaster)
 
 # Solace PubSub+ Connector for Beam: I/O
 

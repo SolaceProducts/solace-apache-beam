@@ -275,7 +275,7 @@ public class SolaceIOIT extends ITBase {
 					jcsmpSessions.add(jcsmpSession);
 
 					LOG.info(String.format("Creating XMLMessageProducer for %s", testJcsmpProperties.getStringProperty(JCSMPProperties.HOST)));
-					XMLMessageProducer producer = jcsmpSession.getMessageProducer(createPublisherEventHandler());
+					XMLMessageProducer producer = jcsmpSession.getMessageProducer(new PublisherEventHandler());
 					producers.add(producer);
 
 					LOG.info(String.format("Sending message %s to queue %s", i, queueName));

@@ -5,7 +5,7 @@ import com.solacesystems.jcsmp.JCSMPException;
 import com.solacesystems.jcsmp.JCSMPFactory;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import com.solacesystems.jcsmp.JCSMPSession;
-import com.solacesystems.jcsmp.JCSMPStreamingPublishEventHandler;
+import com.solacesystems.jcsmp.JCSMPStreamingPublishCorrelatingEventHandler;
 import com.solacesystems.jcsmp.XMLMessageProducer;
 import org.apache.beam.runners.dataflow.TestDataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.TestDataflowRunner;
@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.UUID;
+import java.util.function.BiConsumer;
 
 import static org.junit.Assert.fail;
 
@@ -122,12 +123,13 @@ public abstract class ITBase {
 		testPipeline.getOptions().setJobName(generateJobName(pipelineOptions));
 
 		testJcsmpProperties = (JCSMPProperties) detectedJcsmpProperties.clone();
+		testJcsmpProperties.setProperty(JCSMPProperties.PUB_ACK_WINDOW_SIZE, 255); // max it out for faster publishes
 
 		LOG.info(String.format("Creating JCSMP Session for %s", testJcsmpProperties.getStringProperty(JCSMPProperties.HOST)));
 		jcsmpSession = JCSMPFactory.onlyInstance().createSession(testJcsmpProperties);
 
 		LOG.info(String.format("Creating XMLMessageProducer for %s", testJcsmpProperties.getStringProperty(JCSMPProperties.HOST)));
-		producer = jcsmpSession.getMessageProducer(createPublisherEventHandler());
+		producer = jcsmpSession.getMessageProducer(new PublisherEventHandler());
 
 		sempOps = new SempOperationUtils(mgmtHost, mgmtUsername, mgmtPassword, jcsmpSession, false, true);
 		sempOps.start();
@@ -160,17 +162,56 @@ public abstract class ITBase {
 		return String.format("%s-%s-%s-%s",normalizedAppName, username, timestamp, random).toLowerCase();
 	}
 
-	static JCSMPStreamingPublishEventHandler createPublisherEventHandler() {
-		return new JCSMPStreamingPublishEventHandler() {
-			@Override
-			public void responseReceived(String messageID) {
-				LOG.debug("Producer received response for msg: " + messageID);
+	static class PublisherEventHandler implements JCSMPStreamingPublishCorrelatingEventHandler {
+		@Override
+		public void responseReceivedEx(Object key) {
+			LOG.debug("Producer received response for msg: " + key);
+			if (key instanceof CallbackCorrelationKey) {
+				((CallbackCorrelationKey) key).runOnSuccess();
 			}
+		}
 
-			@Override
-			public void handleError(String messageID, JCSMPException e, long timestamp) {
-				LOG.warn("Producer received error for msg: " + messageID + " - " + timestamp, e);
+		@Override
+		public void handleErrorEx(Object key, JCSMPException e, long timestamp) {
+			LOG.warn("Producer received error for msg: " + key + " - " + timestamp, e);
+			if (key instanceof CallbackCorrelationKey) {
+				((CallbackCorrelationKey) key).runOnFailure(e, timestamp);
 			}
-		};
+		}
+
+		@Override
+		public void handleError(String s, JCSMPException e, long l) {
+			// Deprecated, not used
+		}
+
+		@Override
+		public void responseReceived(String s) {
+			// Deprecated, not used
+		}
+	}
+
+	public static class CallbackCorrelationKey {
+		private Runnable onSuccess;
+		private BiConsumer<JCSMPException, Long> onFailure;
+
+		private void runOnSuccess() {
+			if (onSuccess != null) {
+				onSuccess.run();
+			}
+		}
+
+		private void runOnFailure(JCSMPException e, Long timestamp) {
+			if (onFailure != null) {
+				onFailure.accept(e, timestamp);
+			}
+		}
+
+		public void setOnSuccess(Runnable onSuccess) {
+			this.onSuccess = onSuccess;
+		}
+
+		public void setOnFailure(BiConsumer<JCSMPException, Long> onFailure) {
+			this.onFailure = onFailure;
+		}
 	}
 }
