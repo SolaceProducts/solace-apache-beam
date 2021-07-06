@@ -116,6 +116,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 				throw new IOException(ex);
 			}
 		}
+		return true;
 	}
 
 	@Override
@@ -319,11 +320,11 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 			// downgraded from error because the worker still returns a valid value -- unknown amount of data left
 			// mainly affects the scaling responsiveness of the pipeline in Dataflow and requires a large number of messages remaining consistently before scaling would be triggered
 			// it instead distracts from other errors because once this triggers (e.g. due to having more clients that expected), it will keep popping up
-			LOG.warning(String.format("Encountered a JCSMPException querying queue depth: %s", e.getMessage()), e);
+			LOG.warn(String.format("Encountered a JCSMPException querying queue depth: %s", e.getMessage()), e);
 			return UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
 		} catch (Exception e) {
 			// see above
-			LOG.warning(String.format("Encountered a Parser Exception querying queue depth: %s", e.toString()), e);
+			LOG.warn(String.format("Encountered a Parser Exception querying queue depth: %s", e.toString()), e);
 			return UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
 		} finally {
 			try {
@@ -343,7 +344,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 		long backlogBytes = queryQueueBytes(source.getQueueName(),
 				source.getSpec().jcsmpProperties().getStringProperty(JCSMPProperties.VPN_NAME));
 		if (backlogBytes == UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN) {
-			LOG.warning("getSplitBacklogBytes() unable to read bytes from: {}", source.getQueueName());
+			LOG.warn("getSplitBacklogBytes() unable to read bytes from: {}", source.getQueueName());
 			return UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
 		}
 		readerStats.setCurrentBacklog(backlogBytes);
