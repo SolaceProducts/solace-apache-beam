@@ -36,6 +36,7 @@ jobs:
           SOLACE_VPN_NAME: ${{ secrets.SOLACE_VPN_NAME }}
           SOLACE_USERNAME: ${{ secrets.SOLACE_USERNAME }}
           SOLACE_PASSWORD: ${{ secrets.SOLACE_PASSWORD }}
+          SOLACE_MGMT_HOST: ${{ secrets.SOLACE_MGMT_HOST }}
           SOLACE_MGMT_USERNAME: ${{ secrets.SOLACE_MGMT_USERNAME }}
           SOLACE_MGMT_PASSWORD: ${{ secrets.SOLACE_MGMT_PASSWORD }}
 
@@ -74,6 +75,7 @@ jobs:
           SOLACE_VPN_NAME: ${{ secrets.SOLACE_VPN_NAME }}
           SOLACE_USERNAME: ${{ secrets.SOLACE_USERNAME }}
           SOLACE_PASSWORD: ${{ secrets.SOLACE_PASSWORD }}
+          SOLACE_MGMT_HOST: ${{ secrets.SOLACE_MGMT_HOST }}
           SOLACE_MGMT_USERNAME: ${{ secrets.SOLACE_MGMT_USERNAME }}
           SOLACE_MGMT_PASSWORD: ${{ secrets.SOLACE_MGMT_PASSWORD }}
       - name: Cleanup

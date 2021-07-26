@@ -4,7 +4,7 @@ set -e
 
 createQueue() {
   QUEUE="$1"
-  SOLACE_MGMT_URI="https://${SOLACE_HOST}:943/SEMP/v2"
+  SOLACE_MGMT_URI="${SOLACE_MGMT_HOST}/SEMP/v2"
   curl -X POST -H "content-type:application/json" -u "${SOLACE_MGMT_USERNAME}:${SOLACE_MGMT_PASSWORD}" \
       "${SOLACE_MGMT_URI}/config/msgVpns/${SOLACE_VPN_NAME}/queues" \
       -d "{\"queueName\":\"${QUEUE}\",\"egressEnabled\":true,\"ingressEnabled\":true,\"permission\":\"delete\"}"
@@ -21,7 +21,7 @@ publishMessages() {
   curl -O https://sftp.solace.com/download/SDKPERF_C_LINUX64
   tar -xvf SDKPERF_C_LINUX64
   pubSubTools/sdkperf_c \
-      -cip="tcp://${SOLACE_HOST}:55555" \
+      -cip="${SOLACE_HOST}" \
       -cu="${SOLACE_USERNAME}@${SOLACE_VPN_NAME}" \
       -cp="${SOLACE_PASSWORD}" \
       -mt=persistent \
@@ -46,7 +46,7 @@ testRecordApp() {
   mvn -e compile exec:java \
       -pl solace-apache-beam-samples \
       -Dexec.mainClass=com.solace.connector.beam.examples.SolaceRecordTest \
-      -Dexec.args="--cip=tcp://${SOLACE_HOST}:55555 --cu=${SOLACE_USERNAME} --vpn=${SOLACE_VPN_NAME} --cp=${SOLACE_PASSWORD} --sql=${QUEUE}" \
+      -Dexec.args="--cip=${SOLACE_HOST} --cu=${SOLACE_USERNAME} --vpn=${SOLACE_VPN_NAME} --cp=${SOLACE_PASSWORD} --sql=${QUEUE}" \
       2>&1 | tee output.log &
   echo $! > "$RUNNING_PID"
 
@@ -86,6 +86,9 @@ elif [[ -z "$SOLACE_USERNAME" ]]; then
   exit 1
 elif [[ -z "$SOLACE_PASSWORD" ]]; then
   >&2 echo no SOLACE_PASSWORD env found
+  exit 1
+elif [[ -z "$SOLACE_MGMT_HOST" ]]; then
+  >&2 echo no SOLACE_MGMT_HOST env found
   exit 1
 elif [[ -z "$SOLACE_MGMT_USERNAME" ]]; then
   >&2 echo no SOLACE_MGMT_USERNAME env found

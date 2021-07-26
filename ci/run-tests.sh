@@ -14,6 +14,9 @@ elif [[ -z "$SOLACE_USERNAME" ]]; then
 elif [[ -z "$SOLACE_PASSWORD" ]]; then
   >&2 echo no SOLACE_PASSWORD env found
   exit 1
+elif [[ -z "$SOLACE_MGMT_HOST" ]]; then
+  >&2 echo no SOLACE_MGMT_HOST env found
+  exit 1
 elif [[ -z "$SOLACE_MGMT_USERNAME" ]]; then
   >&2 echo no SOLACE_MGMT_USERNAME env found
   exit 1

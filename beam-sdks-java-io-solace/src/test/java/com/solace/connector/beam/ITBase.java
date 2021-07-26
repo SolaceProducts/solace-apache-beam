@@ -103,17 +103,13 @@ public abstract class ITBase {
 		SolaceIOTestPipelineOptions solaceOps = sharedPipelineOptions.as(SolaceIOTestPipelineOptions.class);
 		PipelineOptionsValidator.validate(SolaceIOTestPipelineOptions.class, solaceOps);
 
-		String solaceHostName = ITEnv.Solace.HOST.get(solaceOps.getSolaceHostName());
-
 		detectedJcsmpProperties = new JCSMPProperties();
 		detectedJcsmpProperties.setProperty(JCSMPProperties.VPN_NAME, ITEnv.Solace.VPN.get(solaceOps.getSolaceVpnName()));
-		detectedJcsmpProperties.setProperty(JCSMPProperties.HOST, String.format("tcp://%s:%s", solaceHostName,
-				ITEnv.Solace.SMF_PORT.get(String.valueOf(solaceOps.getSolaceSmfPort()))));
+		detectedJcsmpProperties.setProperty(JCSMPProperties.HOST, ITEnv.Solace.HOST.get(solaceOps.getSolaceHost()));
 		detectedJcsmpProperties.setProperty(JCSMPProperties.USERNAME, ITEnv.Solace.USERNAME.get(solaceOps.getSolaceUsername()));
 		detectedJcsmpProperties.setProperty(JCSMPProperties.PASSWORD, ITEnv.Solace.PASSWORD.get(solaceOps.getSolacePassword()));
 
-		mgmtHost = String.format("https://%s:%s", solaceHostName,
-				ITEnv.Solace.MGMT_PORT.get(String.valueOf(solaceOps.getSolaceMgmtPort())));
+		mgmtHost = ITEnv.Solace.MGMT_HOST.get(solaceOps.getSolaceMgmtHost());
 		mgmtUsername = ITEnv.Solace.MGMT_USERNAME.get(solaceOps.getSolaceMgmtUsername());
 		mgmtPassword = ITEnv.Solace.MGMT_PASSWORD.get(solaceOps.getSolaceMgmtPassword());
 	}
