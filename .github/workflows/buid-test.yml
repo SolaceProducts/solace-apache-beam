@@ -7,8 +7,23 @@ on:
   push:
 
 jobs:
+  dupe_check:
+    name: Check for Duplicate Workflow Run
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@v3.4.0
+        with:
+          concurrent_skipping: same_content
+          do_not_skip: '["pull_request", "workflow_dispatch", "schedule"]'
+
   build:
     name: Integration Tests
+    needs:
+      - dupe_check
+    if: needs.dupe_check.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -49,6 +64,9 @@ jobs:
 
   sample:
     name: Samples Tests
+    needs:
+      - dupe_check
+    if: needs.dupe_check.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     strategy:
       matrix:
