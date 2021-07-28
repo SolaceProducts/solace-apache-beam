@@ -101,7 +101,11 @@ jobs:
           CI_CLEANUP: ${{ runner.temp }}/cleanup.sh
       - name: Build and Run Samples Tests
         if: ${{ github.event_name != 'pull_request' ||  matrix.type == 'direct' }}
-        run: ci/run-samples-tests.sh '${{ matrix.type }}'
+        uses: nick-invision/retry@v2.4.0
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          command: ci/run-samples-tests.sh '${{ matrix.type }}'
         env:
           DATAFLOW_TEMP_ROOT: ${{ secrets.GCP_DATAFLOW_TEMP_ROOT }}
           SOLACE_HOST: ${{ secrets.SOLACE_HOST }}

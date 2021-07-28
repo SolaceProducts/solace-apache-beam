@@ -64,6 +64,7 @@ testRecordApp() {
     if [[ "$attempts" == "120" ]]; then
       cat output.log
       >&2 echo Timed out while testing SolaceRecordTest
+      kill -9 "$(cat "$RUNNING_PID")"
       exit 1
     fi
 
