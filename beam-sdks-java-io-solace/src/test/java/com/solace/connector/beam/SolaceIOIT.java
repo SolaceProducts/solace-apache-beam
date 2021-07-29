@@ -3,8 +3,7 @@ package com.solace.connector.beam;
 import com.solace.connector.beam.test.fn.ExtractSolacePayloadFn;
 import com.solace.connector.beam.test.transform.CountMessagesPTransform;
 import com.solace.connector.beam.test.util.GoogleDataflowUtil;
-import com.solace.semp.v2.action.ApiException;
-import com.solace.semp.v2.config.model.MsgVpnQueue;
+import com.solace.test.integration.semp.v2.config.model.ConfigMsgVpnQueue;
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.ConsumerFlowProperties;
 import com.solacesystems.jcsmp.EndpointProperties;
@@ -144,7 +143,7 @@ public class SolaceIOIT extends ITBase {
 	@Test
 	public void testExclusiveQueue() throws Exception {
 		sempOps.updateQueue(testJcsmpProperties, testQueues.get(0),
-				new MsgVpnQueue().accessType(MsgVpnQueue.AccessTypeEnum.EXCLUSIVE));
+				new ConfigMsgVpnQueue().accessType(ConfigMsgVpnQueue.AccessTypeEnum.EXCLUSIVE));
 
 		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,
 				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
@@ -164,7 +163,7 @@ public class SolaceIOIT extends ITBase {
 	public void testMultiOnSameExclusiveQueue() throws Exception {
 		testQueues = Arrays.asList(testQueues.get(0), testQueues.get(0));
 		sempOps.updateQueue(testJcsmpProperties, testQueues.get(0),
-				new MsgVpnQueue().accessType(MsgVpnQueue.AccessTypeEnum.EXCLUSIVE));
+				new ConfigMsgVpnQueue().accessType(ConfigMsgVpnQueue.AccessTypeEnum.EXCLUSIVE));
 
 		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,
 				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
@@ -447,7 +446,8 @@ public class SolaceIOIT extends ITBase {
 		}
 	}
 
-	private void drainQueues() throws ApiException {
+	private void drainQueues() throws com.solace.test.integration.semp.v2.monitor.ApiException,
+			com.solace.test.integration.semp.v2.action.ApiException {
 		sempOps.drainQueues(testJcsmpProperties, testQueues);
 		expectedMsgPayloads = new ArrayList<>();
 	}

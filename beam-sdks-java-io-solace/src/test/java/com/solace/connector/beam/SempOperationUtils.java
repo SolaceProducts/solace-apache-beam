@@ -1,15 +1,13 @@
 package com.solace.connector.beam;
 
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.solace.semp.v2.action.model.MsgVpnClient;
-import com.solace.semp.v2.action.model.MsgVpnClientDisconnect;
-import com.solace.semp.v2.action.model.MsgVpnClientsResponse;
-import com.solace.semp.v2.action.model.MsgVpnQueueMsg;
-import com.solace.semp.v2.action.model.MsgVpnQueueMsgDelete;
-import com.solace.semp.v2.config.ApiClient;
-import com.solace.semp.v2.config.ApiException;
-import com.solace.semp.v2.config.api.QueueApi;
-import com.solace.semp.v2.config.model.MsgVpnQueue;
+import com.solace.test.integration.semp.v2.SempV2Api;
+import com.solace.test.integration.semp.v2.action.model.ActionMsgVpnClientDisconnect;
+import com.solace.test.integration.semp.v2.action.model.ActionMsgVpnQueueMsgDelete;
+import com.solace.test.integration.semp.v2.config.model.ConfigMsgVpnQueue;
+import com.solace.test.integration.semp.v2.monitor.ApiException;
+import com.solace.test.integration.semp.v2.monitor.model.MonitorMsgVpnClient;
+import com.solace.test.integration.semp.v2.monitor.model.MonitorMsgVpnClientsResponse;
+import com.solace.test.integration.semp.v2.monitor.model.MonitorMsgVpnQueueMsg;
 import com.solacesystems.jcsmp.JCSMPException;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import com.solacesystems.jcsmp.JCSMPSession;
@@ -28,75 +26,41 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+/**
+ * @deprecated use {@link com.solace.test.integration.semp.v2.SempV2Api}
+ */
+@Deprecated
 public class SempOperationUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(SempOperationUtils.class);
 
-	private String mgmtHost;
-	private String mgmtUsername;
-	private String mgmtPassword;
+	private final SempV2Api sempV2Api;
+	private final MsgBusSempUtil msgBusSempUtil;
 
-	private QueueApi queueConfigApi;
-	private com.solace.semp.v2.action.api.ClientApi clientActionApi;
-	private com.solace.semp.v2.action.api.QueueApi queueActionApi;
-	private com.solace.semp.v2.monitor.api.QueueApi queueMonitorApi;
-
-	private MsgBusSempUtil msgBusSempUtil;
-
-	public SempOperationUtils(String mgmtHost, String mgmtUsername, String mgmtPassword, JCSMPSession jcsmpSession,
+	public SempOperationUtils(SempV2Api sempV2Api, JCSMPSession jcsmpSession,
 							  boolean createProducer, boolean createConsumer) {
-		this.mgmtHost = mgmtHost;
-		this.mgmtUsername = mgmtUsername;
-		this.mgmtPassword = mgmtPassword;
+		this.sempV2Api = sempV2Api;
 		this.msgBusSempUtil = new MsgBusSempUtil(jcsmpSession, createProducer, createConsumer);
 	}
 
 	public void start() throws JCSMPException {
 		msgBusSempUtil.start();
-
-		LOG.info(String.format("Creating Config API Clients for %s", mgmtHost));
-		ApiClient configApiClient = new ApiClient();
-		configApiClient.getJSON().getContext(null).configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-		configApiClient.setBasePath(String.format("%s/SEMP/v2/config", mgmtHost));
-		configApiClient.setUsername(mgmtUsername);
-		configApiClient.setPassword(mgmtPassword);
-
-		queueConfigApi = new QueueApi(configApiClient);
-
-		LOG.info(String.format("Creating Action API Clients for %s", mgmtHost));
-		com.solace.semp.v2.action.ApiClient actionApiClient = new com.solace.semp.v2.action.ApiClient();
-		actionApiClient.getJSON().getContext(null).configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-		actionApiClient.setBasePath(String.format("%s/SEMP/v2/action", mgmtHost));
-		actionApiClient.setUsername(mgmtUsername);
-		actionApiClient.setPassword(mgmtPassword);
-
-		clientActionApi = new com.solace.semp.v2.action.api.ClientApi(actionApiClient);
-		queueActionApi = new com.solace.semp.v2.action.api.QueueApi(actionApiClient);
-
-		LOG.info(String.format("Creating Monitor API Clients for %s", mgmtHost));
-		com.solace.semp.v2.monitor.ApiClient monitorApiClient = new com.solace.semp.v2.monitor.ApiClient();
-		monitorApiClient.getJSON().getContext(null).configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-		monitorApiClient.setBasePath(String.format("%s/SEMP/v2/monitor", mgmtHost));
-		monitorApiClient.setUsername(mgmtUsername);
-		monitorApiClient.setPassword(mgmtPassword);
-
-		queueMonitorApi = new com.solace.semp.v2.monitor.api.QueueApi(monitorApiClient);
 	}
 
 	public void close() {
-		if (msgBusSempUtil != null) {
-			msgBusSempUtil.close();
-		}
+		msgBusSempUtil.close();
 	}
 
-	public void disconnectClients(JCSMPProperties jcsmpProperties, Collection<String> ignoreClients) throws com.solace.semp.v2.action.ApiException {
+	public void disconnectClients(JCSMPProperties jcsmpProperties, Collection<String> ignoreClients) throws
+			com.solace.test.integration.semp.v2.monitor.ApiException,
+			com.solace.test.integration.semp.v2.action.ApiException {
 		String msgVpn = jcsmpProperties.getStringProperty(JCSMPProperties.VPN_NAME);
 		String cursorQuery = null;
 		List<String> clients = new ArrayList<>();
 		do {
-			MsgVpnClientsResponse response = clientActionApi.getMsgVpnClients(msgVpn, Integer.MAX_VALUE, cursorQuery, null, null);
+			MonitorMsgVpnClientsResponse response = sempV2Api.monitor().getMsgVpnClients(msgVpn, Integer.MAX_VALUE, cursorQuery, null, null);
 			clients.addAll(response.getData()
 					.stream()
-					.map(MsgVpnClient::getClientName)
+					.map(MonitorMsgVpnClient::getClientName)
 					.filter(c -> !c.startsWith("#") && !ignoreClients.contains(c))
 					.collect(Collectors.toList()));
 			cursorQuery = response.getMeta().getPaging() != null ? response.getMeta().getPaging().getCursorQuery() : null;
@@ -104,43 +68,47 @@ public class SempOperationUtils {
 
 		for (String clientName : clients) {
 			LOG.info(String.format("Disconnecting client %s", clientName));
-			clientActionApi.doMsgVpnClientDisconnect(msgVpn, clientName, new MsgVpnClientDisconnect());
+			sempV2Api.action().doMsgVpnClientDisconnect(msgVpn, clientName, new ActionMsgVpnClientDisconnect());
 		}
 	}
 
-	public void updateQueue(JCSMPProperties jcsmpProperties, String queueName, MsgVpnQueue queuePatch) throws ApiException {
+	public void updateQueue(JCSMPProperties jcsmpProperties, String queueName, ConfigMsgVpnQueue queuePatch) throws
+			com.solace.test.integration.semp.v2.config.ApiException {
 		String msgVpn = jcsmpProperties.getStringProperty(JCSMPProperties.VPN_NAME);
 
 		LOG.info(String.format("Updating queue %s:\n %s", queueName, queuePatch));
 		shutdownQueueEgress(jcsmpProperties, queueName);
-		queueConfigApi.updateMsgVpnQueue(msgVpn, queueName, queuePatch, null);
+		sempV2Api.config().updateMsgVpnQueue(msgVpn, queueName, queuePatch, null);
 		enableQueueEgress(jcsmpProperties, queueName);
 	}
 
-	public void shutdownQueueEgress(JCSMPProperties jcsmpProperties, String queueName) throws ApiException {
+	public void shutdownQueueEgress(JCSMPProperties jcsmpProperties, String queueName) throws
+			com.solace.test.integration.semp.v2.config.ApiException {
 		String msgVpn = jcsmpProperties.getStringProperty(JCSMPProperties.VPN_NAME);
-		MsgVpnQueue queuePatch = new MsgVpnQueue().egressEnabled(false);
+		ConfigMsgVpnQueue queuePatch = new ConfigMsgVpnQueue().egressEnabled(false);
 
 		LOG.info(String.format("Shutting down egress for queue %s", queueName));
-		queueConfigApi.updateMsgVpnQueue(msgVpn, queueName, queuePatch, null);
+		sempV2Api.config().updateMsgVpnQueue(msgVpn, queueName, queuePatch, null);
 	}
 
-	public void enableQueueEgress(JCSMPProperties jcsmpProperties, String queueName) throws ApiException {
+	public void enableQueueEgress(JCSMPProperties jcsmpProperties, String queueName) throws
+			com.solace.test.integration.semp.v2.config.ApiException {
 		String msgVpn = jcsmpProperties.getStringProperty(JCSMPProperties.VPN_NAME);
-		MsgVpnQueue queuePatch = new MsgVpnQueue().egressEnabled(true);
+		ConfigMsgVpnQueue queuePatch = new ConfigMsgVpnQueue().egressEnabled(true);
 		LOG.info(String.format("Enabling egress for queue %s", queueName));
-		queueConfigApi.updateMsgVpnQueue(msgVpn, queueName, queuePatch, null);
+		sempV2Api.config().updateMsgVpnQueue(msgVpn, queueName, queuePatch, null);
 	}
 
-	public void drainQueues(JCSMPProperties jcsmpProperties, Collection<String> queues) throws com.solace.semp.v2.action.ApiException {
+	public void drainQueues(JCSMPProperties jcsmpProperties, Collection<String> queues) throws ApiException,
+			com.solace.test.integration.semp.v2.action.ApiException {
 		String msgVpn = jcsmpProperties.getStringProperty(JCSMPProperties.VPN_NAME);
 		for (String queueName: new HashSet<>(queues)) {
 			LOG.info(String.format("Draining queue %s", queueName));
-			List<MsgVpnQueueMsg> messages;
+			List<MonitorMsgVpnQueueMsg> messages;
 			do {
-				messages = queueActionApi.getMsgVpnQueueMsgs(msgVpn, queueName, Integer.MAX_VALUE, null, null, null).getData();
-				for (MsgVpnQueueMsg message : messages) {
-					queueActionApi.doMsgVpnQueueMsgDelete(msgVpn, queueName, String.valueOf(message.getMsgId()), new MsgVpnQueueMsgDelete());
+				messages = sempV2Api.monitor().getMsgVpnQueueMsgs(msgVpn, queueName, Integer.MAX_VALUE, null, null, null).getData();
+				for (MonitorMsgVpnQueueMsg message : messages) {
+					sempV2Api.action().doMsgVpnQueueMsgDelete(msgVpn, queueName, String.valueOf(message.getMsgId()), new ActionMsgVpnQueueMsgDelete());
 				}
 			} while (!messages.isEmpty());
 		}
@@ -154,24 +122,24 @@ public class SempOperationUtils {
 		return Long.parseLong(msgBusSempUtil.queryRouter(request, searchString));
 	}
 
-	public long getQueueUnackedMessageCount(JCSMPProperties jcsmpProperties, String queueName) throws com.solace.semp.v2.monitor.ApiException {
+	public long getQueueUnackedMessageCount(JCSMPProperties jcsmpProperties, String queueName) throws ApiException {
 		String msgVpn = jcsmpProperties.getStringProperty(JCSMPProperties.VPN_NAME);
-		return queueMonitorApi.getMsgVpnQueue(msgVpn, queueName, null).getData().getTxUnackedMsgCount();
+		return sempV2Api.monitor().getMsgVpnQueue(msgVpn, queueName, null).getData().getTxUnackedMsgCount();
 	}
 
-	public long getQueueMaxDeliveredUnackedMsgsPerFlow(JCSMPProperties jcsmpProperties, String queueName) throws com.solace.semp.v2.monitor.ApiException {
+	public long getQueueMaxDeliveredUnackedMsgsPerFlow(JCSMPProperties jcsmpProperties, String queueName) throws ApiException {
 		String msgVpn = jcsmpProperties.getStringProperty(JCSMPProperties.VPN_NAME);
-		return queueMonitorApi.getMsgVpnQueue(msgVpn, queueName, null).getData().getMaxDeliveredUnackedMsgsPerFlow();
+		return sempV2Api.monitor().getMsgVpnQueue(msgVpn, queueName, null).getData().getMaxDeliveredUnackedMsgsPerFlow();
 	}
 
-	public boolean isQueueEmpty(JCSMPProperties jcsmpProperties, String queueName) throws com.solace.semp.v2.monitor.ApiException {
+	public boolean isQueueEmpty(JCSMPProperties jcsmpProperties, String queueName) throws ApiException {
 		String msgVpn = jcsmpProperties.getStringProperty(JCSMPProperties.VPN_NAME);
-		return queueMonitorApi.getMsgVpnQueue(msgVpn, queueName, null).getData().getMsgSpoolUsage() <= 0;
+		return sempV2Api.monitor().getMsgVpnQueue(msgVpn, queueName, null).getData().getMsgSpoolUsage() <= 0;
 	}
 
 	public void waitForQueuesEmpty(JCSMPProperties jcsmpProperties, Collection<String> queues, long waitSecs)
-			throws InterruptedException, com.solace.semp.v2.monitor.ApiException, ParserConfigurationException,
-			TransformerException, IOException, XPathExpressionException, JCSMPException, SAXException {
+			throws InterruptedException, ParserConfigurationException,
+			TransformerException, IOException, XPathExpressionException, JCSMPException, SAXException, ApiException {
 
 		for (String queueName : new HashSet<>(queues)) {
 			long wait = TimeUnit.SECONDS.toMillis(waitSecs);

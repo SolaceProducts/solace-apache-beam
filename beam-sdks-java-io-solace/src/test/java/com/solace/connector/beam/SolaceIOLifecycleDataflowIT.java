@@ -7,7 +7,7 @@ import com.solace.connector.beam.test.fn.ExtractSolacePayloadFn;
 import com.solace.connector.beam.test.transform.FileWriterPTransform;
 import com.solace.connector.beam.test.util.GoogleDataflowUtil;
 import com.solace.connector.beam.test.util.GoogleStorageUtil;
-import com.solace.semp.v2.config.model.MsgVpnQueue;
+import com.solace.test.integration.semp.v2.config.model.ConfigMsgVpnQueue;
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.EndpointProperties;
@@ -139,7 +139,7 @@ public class SolaceIOLifecycleDataflowIT extends ITBase {
 			LOG.info(String.format("Staggering message consumption for queue %s to %s max delivered unacked messages",
 					queueName, maxDeliveredUnackedMsgs));
 			sempOps.updateQueue(testJcsmpProperties, queueName,
-					new MsgVpnQueue().maxDeliveredUnackedMsgsPerFlow(maxDeliveredUnackedMsgs));
+					new ConfigMsgVpnQueue().maxDeliveredUnackedMsgsPerFlow(maxDeliveredUnackedMsgs));
 
 			populateQueue(queueName, numMsgsPerQueue);
 		}
@@ -196,7 +196,7 @@ public class SolaceIOLifecycleDataflowIT extends ITBase {
 								"consider staggering message consumption rate", queueName, pipelineOptions.getJobName()),
 						sempOps.getQueueMessageCount(testJcsmpProperties, queueName), greaterThan((long) 0));
 				sempOps.updateQueue(testJcsmpProperties, queueName,
-						new MsgVpnQueue().maxDeliveredUnackedMsgsPerFlow(defaultMaxDeliveredUnackedMsgs));
+						new ConfigMsgVpnQueue().maxDeliveredUnackedMsgsPerFlow(defaultMaxDeliveredUnackedMsgs));
 			}
 
 			sempOps.waitForQueuesEmpty(testJcsmpProperties, testQueues, TimeUnit.MINUTES.toSeconds(5));
@@ -217,7 +217,7 @@ public class SolaceIOLifecycleDataflowIT extends ITBase {
 		for (String queueName : testQueues) {
 			LOG.info(String.format("Restricting consumption rate for queue %s", queueName));
 			sempOps.updateQueue(testJcsmpProperties, queueName,
-					new MsgVpnQueue().maxDeliveredUnackedMsgsPerFlow((long) 10));
+					new ConfigMsgVpnQueue().maxDeliveredUnackedMsgsPerFlow((long) 10));
 		}
 
 		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,
@@ -280,7 +280,7 @@ public class SolaceIOLifecycleDataflowIT extends ITBase {
 		for (String queueName : testQueues) {
 			LOG.info(String.format("Restricting consumption rate for queue %s", queueName));
 			sempOps.updateQueue(testJcsmpProperties, queueName,
-					new MsgVpnQueue().maxDeliveredUnackedMsgsPerFlow((long) 10));
+					new ConfigMsgVpnQueue().maxDeliveredUnackedMsgsPerFlow((long) 10));
 		}
 
 		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,

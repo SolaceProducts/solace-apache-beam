@@ -4,7 +4,8 @@ import java.util.Optional;
 
 public final class ITEnv {
 	public enum Test implements EnvProperty {
-		RUNNER("TEST_RUNNER");
+		RUNNER("TEST_RUNNER"),
+		USE_TESTCONTAINERS("TEST_USE_TESTCONTAINERS");
 
 		private final String name;
 		Test(String name) {

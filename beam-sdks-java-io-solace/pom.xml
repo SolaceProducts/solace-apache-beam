@@ -117,6 +117,24 @@
 		</dependency>
 
 		<dependency>
+			<groupId>com.solace.test.integration</groupId>
+			<artifactId>pubsubplus-testcontainer</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>junit-jupiter</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.solace.test.integration</groupId>
+			<artifactId>solace-semp-v2-client</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
 			<groupId>org.hamcrest</groupId>
 			<artifactId>hamcrest-library</artifactId>
 			<version>1.3</version>
@@ -148,100 +166,6 @@
 			<artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
 			<scope>test</scope>
 		</dependency>
-
-		<!--
-			DEPENDENCIES TO GENERATE SOLACE SEMP CLIENT
-			- - - - - - - - START - - - - - - - -
-		-->
-
-		<dependency>
-			<groupId>io.swagger</groupId>
-			<artifactId>swagger-annotations</artifactId>
-			<version>1.5.8</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.glassfish.jersey.core</groupId>
-			<artifactId>jersey-client</artifactId>
-			<version>2.25.1</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.glassfish.jersey.media</groupId>
-			<artifactId>jersey-media-multipart</artifactId>
-			<version>2.25.1</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.glassfish.jersey.media</groupId>
-			<artifactId>jersey-media-json-jackson</artifactId>
-			<version>2.25.1</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>com.fasterxml.jackson.jaxrs</groupId>
-			<artifactId>jackson-jaxrs-base</artifactId>
-			<version>2.9.10</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-core</artifactId>
-			<version>2.9.10</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-annotations</artifactId>
-			<version>2.9.10</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-databind</artifactId>
-			<version>2.9.10.7</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>com.fasterxml.jackson.jaxrs</groupId>
-			<artifactId>jackson-jaxrs-json-provider</artifactId>
-			<version>2.9.10</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>com.fasterxml.jackson.datatype</groupId>
-			<artifactId>jackson-datatype-joda</artifactId>
-			<version>2.9.10</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>com.brsanthu</groupId>
-			<artifactId>migbase64</artifactId>
-			<version>2.2</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.glassfish.jaxb</groupId>
-			<artifactId>jaxb-runtime</artifactId>
-			<version>2.3.2</version>
-			<scope>test</scope>
-		</dependency>
-
-		<!--
-			- - - - - - - - END - - - - - - - -
-			DEPENDENCIES TO GENERATE SOLACE SEMP CLIENT
-		-->
 	</dependencies>
 
 	<profiles>
@@ -280,91 +204,6 @@
 			</plugin>
 
 			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<configuration>
-					<excludes>
-						<!-- workaround for generateApiTests=false in swagger-codegen-maven-plugin not working -->
-						<exclude>**/*ApiTest.java</exclude>
-					</excludes>
-				</configuration>
-			</plugin>
-
-			<plugin>
-				<groupId>io.swagger</groupId>
-				<artifactId>swagger-codegen-maven-plugin</artifactId>
-				<version>2.4.2</version>
-				<executions>
-					<execution>
-						<id>generate-semp-action-api</id>
-						<phase>generate-test-sources</phase>
-						<goals>
-							<goal>generate</goal>
-						</goals>
-						<configuration>
-							<inputSpec>${project.basedir}/src/test/resources/semp-v2-swagger-action.json</inputSpec>
-							<output>${project.build.directory}/generated-test-sources/swagger</output>
-							<language>java</language>
-							<apiPackage>com.solace.semp.v2.action.api</apiPackage>
-							<modelPackage>com.solace.semp.v2.action.model</modelPackage>
-							<library>jersey2</library>
-							<configOptions>
-								<sourceFolder>src/test/java</sourceFolder>
-								<interfaceOnly>true</interfaceOnly>
-								<useTags>true</useTags>
-								<dateLibrary>joda</dateLibrary>
-								<hideGenerationTimestamp>true</hideGenerationTimestamp>
-							</configOptions>
-						</configuration>
-					</execution>
-					<execution>
-						<id>generate-semp-config-api</id>
-						<phase>generate-test-sources</phase>
-						<goals>
-							<goal>generate</goal>
-						</goals>
-						<configuration>
-							<inputSpec>${project.basedir}/src/test/resources/semp-v2-swagger-config.json</inputSpec>
-							<output>${project.build.directory}/generated-test-sources/swagger</output>
-							<language>java</language>
-							<apiPackage>com.solace.semp.v2.config.api</apiPackage>
-							<modelPackage>com.solace.semp.v2.config.model</modelPackage>
-							<library>jersey2</library>
-							<configOptions>
-								<sourceFolder>src/test/java</sourceFolder>
-								<interfaceOnly>true</interfaceOnly>
-								<useTags>true</useTags>
-								<dateLibrary>joda</dateLibrary>
-								<hideGenerationTimestamp>true</hideGenerationTimestamp>
-							</configOptions>
-						</configuration>
-					</execution>
-					<execution>
-						<id>generate-semp-monitor-api</id>
-						<phase>generate-test-sources</phase>
-						<goals>
-							<goal>generate</goal>
-						</goals>
-						<configuration>
-							<inputSpec>${project.basedir}/src/test/resources/semp-v2-swagger-monitor.json</inputSpec>
-							<output>${project.build.directory}/generated-test-sources/swagger</output>
-							<language>java</language>
-							<apiPackage>com.solace.semp.v2.monitor.api</apiPackage>
-							<modelPackage>com.solace.semp.v2.monitor.model</modelPackage>
-							<library>jersey2</library>
-							<configOptions>
-								<sourceFolder>src/test/java</sourceFolder>
-								<interfaceOnly>true</interfaceOnly>
-								<useTags>true</useTags>
-								<dateLibrary>joda</dateLibrary>
-								<hideGenerationTimestamp>true</hideGenerationTimestamp>
-							</configOptions>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-
-			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>build-helper-maven-plugin</artifactId>
 				<version>1.12</version>
@@ -378,19 +217,6 @@
 						<configuration>
 							<sources>
 								<source>${basedir}/target/generated-sources</source>
-							</sources>
-						</configuration>
-					</execution>
-
-					<execution>
-						<id>generate-test-sources</id>
-						<phase>generate-test-sources</phase>
-						<goals>
-							<goal>add-test-source</goal>
-						</goals>
-						<configuration>
-							<sources>
-								<source>${basedir}/target/generated-test-sources</source>
 							</sources>
 						</configuration>
 					</execution>
