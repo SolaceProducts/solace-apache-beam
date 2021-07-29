@@ -171,6 +171,28 @@
       </plugin>
 
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <version>2.22.2</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+
+          <!--
+			Surefire's Manifest-Only Jar isn't properly interpreted by Apache Beam when detecting "filesToStage".
+			More info here: http://maven.apache.org/surefire/maven-failsafe-plugin/examples/class-loading.html
+		  -->
+          <useManifestOnlyJar>false</useManifestOnlyJar>
+        </configuration>
+      </plugin>
+
+      <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>flatten-maven-plugin</artifactId>
         <version>1.1.0</version>
@@ -287,35 +309,6 @@
   </build>
 
   <profiles>
-    <profile>
-      <id>it</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-failsafe-plugin</artifactId>
-            <version>2.22.2</version>
-            <executions>
-              <execution>
-                <goals>
-                  <goal>integration-test</goal>
-                  <goal>verify</goal>
-                </goals>
-              </execution>
-            </executions>
-            <configuration>
-
-              <!--
-                Surefire's Manifest-Only Jar isn't properly interpreted by Apache Beam when detecting "filesToStage".
-                More info here: http://maven.apache.org/surefire/maven-failsafe-plugin/examples/class-loading.html
-              -->
-              <useManifestOnlyJar>false</useManifestOnlyJar>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-
     <profile>
       <id>releaseCentral</id>
       <activation>

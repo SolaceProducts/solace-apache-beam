@@ -43,7 +43,7 @@ echo '------------------------------------------------'
 echo
 
 case "$BEAM_RUNNER_TYPE" in
-"dataflow") mvn clean compile verify -Pit -DbeamTestPipelineOptions='["--runner=TestDataflowRunner"]' $ADD_ARGS;;
-"direct") mvn clean compile verify -Pit $ADD_ARGS;;
+"dataflow") mvn clean compile verify -DbeamTestPipelineOptions='["--runner=TestDataflowRunner"]' $ADD_ARGS;;
+"direct") mvn clean compile verify $ADD_ARGS;;
 *) >&2 echo "Received invalid BEAM_RUNNER_TYPE value: $BEAM_RUNNER_TYPE"
 esac
