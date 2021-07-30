@@ -32,11 +32,11 @@
 	<properties>
 		<beam.version>2.20.0</beam.version>
 		<solace-beam.version>1.1.0-SNAPSHOT</solace-beam.version>
+		<log4j.version>2.14.1</log4j.version>
 
 		<maven-exec-plugin.version>1.6.0</maven-exec-plugin.version>
 		<maven-jar-plugin.version>3.0.2</maven-jar-plugin.version>
 		<maven-shade-plugin.version>3.1.0</maven-shade-plugin.version>
-		<slf4j.version>1.7.25</slf4j.version>
 	</properties>
 
 	<dependencyManagement>
@@ -64,9 +64,39 @@
 		</dependency>
 
 		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-simple</artifactId>
-			<version>${slf4j.version}</version>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-slf4j-impl</artifactId>
+			<version>${log4j.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.junit.vintage</groupId>
+			<artifactId>junit-vintage-engine</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.solace.test.integration</groupId>
+			<artifactId>pubsubplus-testcontainer</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>junit-jupiter</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.solace.test.integration</groupId>
+			<artifactId>solace-semp-v2-client</artifactId>
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
 
