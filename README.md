@@ -1,4 +1,5 @@
-[![Actions Status](https://github.com/SolaceProducts/solace-apache-beam/workflows/build/badge.svg?branch=master)](https://github.com/SolaceProducts/solace-apache-beam/actions?query=workflow%3Abuild+branch%3Amaster)
+[![Test (Direct)](https://github.com/SolaceProducts/solace-apache-beam/actions/workflows/test-direct.yml/badge.svg?branch=master)](https://github.com/SolaceProducts/solace-apache-beam/actions/workflows/test-direct.yml)
+[![Test (Google Dataflow)](https://github.com/SolaceProducts/solace-apache-beam/actions/workflows/test-dataflow.yml/badge.svg?branch=master)](https://github.com/SolaceProducts/solace-apache-beam/actions/workflows/test-dataflow.yml)
 
 # Solace PubSub+ Connector for Beam: I/O
 

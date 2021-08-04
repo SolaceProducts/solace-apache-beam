@@ -82,6 +82,12 @@
 		</dependency>
 
 		<dependency>
+			<groupId>org.apache.beam</groupId>
+			<artifactId>beam-runners-direct-java</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
 			<groupId>com.solace.test.integration</groupId>
 			<artifactId>pubsubplus-testcontainer</artifactId>
 			<scope>test</scope>
