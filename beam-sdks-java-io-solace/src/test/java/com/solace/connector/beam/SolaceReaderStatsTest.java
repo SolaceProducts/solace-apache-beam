@@ -1,19 +1,16 @@
 package com.solace.connector.beam;
 
 import org.joda.time.Instant;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Random;
 
 import static org.hamcrest.CoreMatchers.containsString;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
-@RunWith(JUnit4.class)
 public class SolaceReaderStatsTest {
 	private SolaceReaderStats solaceReaderStats;
 	private Long emptyPoll;
@@ -27,7 +24,7 @@ public class SolaceReaderStatsTest {
 	private Long monitorChecks;
 	private Long monitorFlowClose;
 
-	@Before
+	@BeforeEach
 	public void setup() {
 		Random random = new Random();
 

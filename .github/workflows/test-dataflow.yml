@@ -1,0 +1,62 @@
+name: Test (Google Dataflow)
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  dupe_check:
+    name: Check for Duplicate Workflow Run
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@v3.4.0
+        with:
+          concurrent_skipping: same_content
+          do_not_skip: '["pull_request", "workflow_dispatch", "schedule"]'
+
+  build:
+    name: Integration Tests
+    needs:
+      - dupe_check
+    if: needs.dupe_check.outputs.should_skip != 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: Cache local Maven repository
+        uses: actions/cache@v2
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-test-dataflow-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-test-dataflow-
+      - name: Setup JDK 8
+        uses: actions/setup-java@v2
+        with:
+          distribution: zulu
+          java-version: 8
+      - name: Setup GCP SDK
+        uses: google-github-actions/setup-gcloud@master
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          export_default_credentials: true
+      - name: Install Test Support
+        run: mvn clean install -f solace-integration-test-support/ -DskipTests
+      - name: Build and Run Tests
+        run: mvn clean verify
+        env:
+          DATAFLOW_TEMP_ROOT: ${{ secrets.GCP_DATAFLOW_TEMP_ROOT }}
+          SOLACE_HOST: ${{ secrets.SOLACE_HOST }}
+          SOLACE_VPN_NAME: ${{ secrets.SOLACE_VPN_NAME }}
+          SOLACE_USERNAME: ${{ secrets.SOLACE_USERNAME }}
+          SOLACE_PASSWORD: ${{ secrets.SOLACE_PASSWORD }}
+          SOLACE_MGMT_HOST: ${{ secrets.SOLACE_MGMT_HOST }}
+          SOLACE_MGMT_USERNAME: ${{ secrets.SOLACE_MGMT_USERNAME }}
+          SOLACE_MGMT_PASSWORD: ${{ secrets.SOLACE_MGMT_PASSWORD }}
+          TEST_RUNNER: TestDataflowRunner

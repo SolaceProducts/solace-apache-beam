@@ -1,6 +1,9 @@
 package com.solace.connector.beam;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.solace.test.integration.semp.v2.SempV2Api;
+import com.solace.test.integration.semp.v2.config.model.ConfigMsgVpnClientUsername;
+import com.solace.test.integration.testcontainer.PubSubPlusContainer;
 import com.solacesystems.jcsmp.JCSMPException;
 import com.solacesystems.jcsmp.JCSMPFactory;
 import com.solacesystems.jcsmp.JCSMPProperties;
@@ -19,6 +22,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.format.DateTimeFormat;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -38,13 +42,17 @@ public abstract class ITBase {
 	JCSMPProperties testJcsmpProperties;
 	JCSMPSession jcsmpSession;
 	XMLMessageProducer producer;
+
+	/**
+	 * @deprecated use {@link #sempV2Api}
+	 */
+	@Deprecated
 	SempOperationUtils sempOps;
 
+	public static SempV2Api sempV2Api;
 	static PipelineOptions sharedPipelineOptions;
+	private static PubSubPlusContainer pubSubPlusContainer;
 	private static JCSMPProperties detectedJcsmpProperties;
-	private static String mgmtHost;
-	private static String mgmtUsername;
-	private static String mgmtPassword;
 	private static final String DATAFLOW_REGION_US_CENTRAL1 = "us-central1";
 	private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -57,7 +65,7 @@ public abstract class ITBase {
 	}
 
 	@BeforeClass
-	public static void initTestProperties() {
+	public static void initTestProperties() throws Exception {
 		PipelineOptionsFactory.register(SolaceIOTestPipelineOptions.class);
 		sharedPipelineOptions = TestPipeline.testingPipelineOptions();
 
@@ -97,25 +105,40 @@ public abstract class ITBase {
 					String.join(", ",
 							TestDataflowRunner.class.getSimpleName(),
 							DirectRunner.class.getSimpleName())));
+		} else if (ITEnv.Test.USE_TESTCONTAINERS.get("true").equalsIgnoreCase("true")) {
+			// Testcontainers only makes sense to be used with the direct runner
+			pubSubPlusContainer = new PubSubPlusContainer();
+			pubSubPlusContainer.start();
 		}
 
 		LOG.info("Initializing PubSub+ broker credentials");
 		SolaceIOTestPipelineOptions solaceOps = sharedPipelineOptions.as(SolaceIOTestPipelineOptions.class);
 		PipelineOptionsValidator.validate(SolaceIOTestPipelineOptions.class, solaceOps);
 
-		String solaceHostName = ITEnv.Solace.HOST.get(solaceOps.getSolaceHostName());
-
 		detectedJcsmpProperties = new JCSMPProperties();
-		detectedJcsmpProperties.setProperty(JCSMPProperties.VPN_NAME, ITEnv.Solace.VPN.get(solaceOps.getSolaceVpnName()));
-		detectedJcsmpProperties.setProperty(JCSMPProperties.HOST, String.format("tcp://%s:%s", solaceHostName,
-				ITEnv.Solace.SMF_PORT.get(String.valueOf(solaceOps.getSolaceSmfPort()))));
-		detectedJcsmpProperties.setProperty(JCSMPProperties.USERNAME, ITEnv.Solace.USERNAME.get(solaceOps.getSolaceUsername()));
-		detectedJcsmpProperties.setProperty(JCSMPProperties.PASSWORD, ITEnv.Solace.PASSWORD.get(solaceOps.getSolacePassword()));
 
-		mgmtHost = String.format("https://%s:%s", solaceHostName,
-				ITEnv.Solace.MGMT_PORT.get(String.valueOf(solaceOps.getSolaceMgmtPort())));
-		mgmtUsername = ITEnv.Solace.MGMT_USERNAME.get(solaceOps.getSolaceMgmtUsername());
-		mgmtPassword = ITEnv.Solace.MGMT_PASSWORD.get(solaceOps.getSolaceMgmtPassword());
+		if (pubSubPlusContainer != null) {
+			detectedJcsmpProperties.setProperty(JCSMPProperties.HOST, pubSubPlusContainer.getOrigin(PubSubPlusContainer.Port.SMF));
+			detectedJcsmpProperties.setProperty(JCSMPProperties.USERNAME, "default");
+			detectedJcsmpProperties.setProperty(JCSMPProperties.PASSWORD, "default");
+			detectedJcsmpProperties.setProperty(JCSMPProperties.VPN_NAME, "default");
+
+			sempV2Api = new SempV2Api(pubSubPlusContainer.getOrigin(PubSubPlusContainer.Port.SEMP),
+					pubSubPlusContainer.getAdminUsername(), pubSubPlusContainer.getAdminPassword());
+
+			sempV2Api.config()
+					.updateMsgVpnClientUsername("default", "default",
+					new ConfigMsgVpnClientUsername().password("default"), null);
+		} else {
+			detectedJcsmpProperties.setProperty(JCSMPProperties.HOST, ITEnv.Solace.HOST.get(solaceOps.getSolaceHost()));
+			detectedJcsmpProperties.setProperty(JCSMPProperties.USERNAME, ITEnv.Solace.USERNAME.get(solaceOps.getSolaceUsername()));
+			detectedJcsmpProperties.setProperty(JCSMPProperties.PASSWORD, ITEnv.Solace.PASSWORD.get(solaceOps.getSolacePassword()));
+			detectedJcsmpProperties.setProperty(JCSMPProperties.VPN_NAME, ITEnv.Solace.VPN.get(solaceOps.getSolaceVpnName()));
+
+			sempV2Api = new SempV2Api(ITEnv.Solace.MGMT_HOST.get(solaceOps.getSolaceMgmtHost()),
+					ITEnv.Solace.MGMT_USERNAME.get(solaceOps.getSolaceMgmtUsername()),
+					ITEnv.Solace.MGMT_PASSWORD.get(solaceOps.getSolaceMgmtPassword()));
+		}
 	}
 
 	@Before
@@ -131,8 +154,15 @@ public abstract class ITBase {
 		LOG.info(String.format("Creating XMLMessageProducer for %s", testJcsmpProperties.getStringProperty(JCSMPProperties.HOST)));
 		producer = jcsmpSession.getMessageProducer(new PublisherEventHandler());
 
-		sempOps = new SempOperationUtils(mgmtHost, mgmtUsername, mgmtPassword, jcsmpSession, false, true);
+		sempOps = new SempOperationUtils(sempV2Api, jcsmpSession, false, true);
 		sempOps.start();
+	}
+
+	@AfterClass
+	public static void teardownGlobalResources() {
+		if (pubSubPlusContainer != null) {
+			pubSubPlusContainer.close();
+		}
 	}
 
 	@After

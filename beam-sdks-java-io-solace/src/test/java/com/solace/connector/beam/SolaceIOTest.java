@@ -1,41 +1,35 @@
 package com.solace.connector.beam;
 
 import com.solacesystems.jcsmp.JCSMPProperties;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.joda.time.Duration;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
+import static org.hamcrest.Matchers.containsString;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-@RunWith(JUnit4.class)
 public class SolaceIOTest {
-	@Rule public ExpectedException thrown = ExpectedException.none();
-
 	private JCSMPProperties testJcsmpProperties;
 	private List<String> testQueues;
 
-	private static final Logger LOG = LoggerFactory.getLogger(SolaceIOTest.class);
-
-	@Before
+	@BeforeEach
 	public void setup() {
 		testJcsmpProperties = new JCSMPProperties();
-		testJcsmpProperties.setProperty(JCSMPProperties.HOST, "dummySolacePubsubHost");
-		testJcsmpProperties.setProperty(JCSMPProperties.USERNAME, "dummy");
-		testJcsmpProperties.setProperty(JCSMPProperties.PASSWORD, "dummy");
-		testJcsmpProperties.setProperty(JCSMPProperties.VPN_NAME, "dummy");
+		testJcsmpProperties.setProperty(JCSMPProperties.HOST, RandomStringUtils.randomAlphanumeric(10));
+		testJcsmpProperties.setProperty(JCSMPProperties.USERNAME, RandomStringUtils.randomAlphanumeric(10));
+		testJcsmpProperties.setProperty(JCSMPProperties.PASSWORD, RandomStringUtils.randomAlphanumeric(10));
+		testJcsmpProperties.setProperty(JCSMPProperties.VPN_NAME, RandomStringUtils.randomAlphanumeric(10));
 
 		testQueues = new ArrayList<>();
 		testQueues.add(UUID.randomUUID().toString());
@@ -59,187 +53,120 @@ public class SolaceIOTest {
 
 	@Test
 	public void testNullJcsmpProperties() {
-		thrown.expect(NullPointerException.class);
-		thrown.expectMessage("jcsmpProperties");
-
-		SolaceIO.read(null, testQueues, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper());
+		NullPointerException exception = assertThrows(NullPointerException.class, () ->
+				SolaceIO.read(null, testQueues, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper()));
+		assertThat(exception.getMessage(), containsString("jcsmpProperties"));
 	}
 
 	@Test
 	public void testNullJcsmpPropertiesOverride() {
-		thrown.expect(NullPointerException.class);
-		thrown.expectMessage("jcsmpProperties");
+		NullPointerException exception = assertThrows(NullPointerException.class, () ->
+				SolaceIO.read(testJcsmpProperties, testQueues, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
+						.withJcsmpProperties(null));
+		assertThat(exception.getMessage(), containsString("jcsmpProperties"));
+	}
 
-		SolaceIO.read(testJcsmpProperties, testQueues, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
-				.withJcsmpProperties(null);
+	@ParameterizedTest
+	@ValueSource(strings = {JCSMPProperties.HOST, JCSMPProperties.USERNAME, JCSMPProperties.PASSWORD, JCSMPProperties.VPN_NAME})
+	public void testJcsmpPropertiesWithNullRequiredProperty(String jcsmpProperty) {
+		testJcsmpProperties.setProperty(jcsmpProperty, null);
+		IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+				SolaceIO.read(testJcsmpProperties, testQueues, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper()));
+		assertThat(exception.getMessage(), containsString(jcsmpProperty + " cannot be null"));
 	}
 
 	@Test
-	public void test_jcsmpProperties_NullHost() {
-		thrown.expect(IllegalArgumentException.class);
-		thrown.expectMessage(JCSMPProperties.HOST + " cannot be null");
-
-		testJcsmpProperties.setProperty(JCSMPProperties.HOST, null);
-		SolaceIO.read(testJcsmpProperties, testQueues, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper());
-	}
-
-	@Test
-	public void test_jcsmpProperties_NullUsername() {
-		thrown.expect(IllegalArgumentException.class);
-		thrown.expectMessage(JCSMPProperties.USERNAME + " cannot be null");
-
-		testJcsmpProperties.setProperty(JCSMPProperties.USERNAME, null);
-		SolaceIO.read(testJcsmpProperties, testQueues, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper());
-	}
-
-	@Test
-	public void test_jcsmpProperties_NullPassword() {
-		thrown.expect(IllegalArgumentException.class);
-		thrown.expectMessage(JCSMPProperties.PASSWORD + " cannot be null");
-
-		testJcsmpProperties.setProperty(JCSMPProperties.PASSWORD, null);
-		SolaceIO.read(testJcsmpProperties, testQueues, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper());
-	}
-
-	@Test
-	public void test_jcsmpProperties_NullVpn() {
-		thrown.expect(IllegalArgumentException.class);
-		thrown.expectMessage(JCSMPProperties.VPN_NAME + " cannot be null");
-
-		testJcsmpProperties.setProperty(JCSMPProperties.VPN_NAME, null);
-		SolaceIO.read(testJcsmpProperties, testQueues, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper());
-	}
-
-	@Test
-	public void test_jcsmpProperties_NonNullClientName() {
-		thrown.expect(IllegalArgumentException.class);
-		thrown.expectMessage(JCSMPProperties.CLIENT_NAME + " must be null");
-
+	public void testJcsmpPropertiesWithNonNullClientName() {
 		testJcsmpProperties.setProperty(JCSMPProperties.CLIENT_NAME, "dummy");
-		SolaceIO.read(testJcsmpProperties, testQueues, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper());
+		IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+				SolaceIO.read(testJcsmpProperties, testQueues, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper()));
+		assertThat(exception.getMessage(), containsString(JCSMPProperties.CLIENT_NAME + " must be null"));
 	}
 
 	@Test
 	public void testNullQueues() {
-		thrown.expect(NullPointerException.class);
-		thrown.expectMessage("queues");
-
-		SolaceIO.read(testJcsmpProperties, null, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper());
-
+		NullPointerException exception = assertThrows(NullPointerException.class, () ->
+				SolaceIO.read(testJcsmpProperties, null, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper()));
+		assertThat(exception.getMessage(), containsString("queues"));
 	}
 
 	@Test
 	public void testNullQueuesOverride() {
-		thrown.expect(NullPointerException.class);
-		thrown.expectMessage("queues");
-
-		SolaceIO.read(testJcsmpProperties, null, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
-				.withQueues(new ArrayList<>());
+		NullPointerException exception = assertThrows(NullPointerException.class, () ->
+				SolaceIO.read(testJcsmpProperties, null, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
+						.withQueues(new ArrayList<>()));
+		assertThat(exception.getMessage(), containsString("queues"));
 	}
 
 	@Test
 	public void testEmptyQueues() {
-		thrown.expect(IllegalArgumentException.class);
-		thrown.expectMessage("queues cannot be null or empty");
-
-		SolaceIO.read(testJcsmpProperties, new ArrayList<>(), SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper());
-
+		IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+				SolaceIO.read(testJcsmpProperties, new ArrayList<>(), SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper()));
+		assertThat(exception.getMessage(), containsString("queues cannot be null or empty"));
 	}
 
 	@Test
 	public void testEmptyQueuesOverride() {
-		thrown.expect(IllegalArgumentException.class);
-		thrown.expectMessage("queues cannot be null or empty");
-
-		SolaceIO.read(testJcsmpProperties, testQueues, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
-			.withQueues(new ArrayList<>());
+		IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+				SolaceIO.read(testJcsmpProperties, testQueues, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
+						.withQueues(new ArrayList<>()));
+		assertThat(exception.getMessage(), containsString("queues cannot be null or empty"));
 	}
 
 	@Test
 	public void testNullCoder() {
-		thrown.expect(NullPointerException.class);
-		thrown.expectMessage("coder");
-
-		SolaceIO.read(testJcsmpProperties, testQueues, null, SolaceTestRecord.getMapper());
+		NullPointerException exception = assertThrows(NullPointerException.class, () ->
+				SolaceIO.read(testJcsmpProperties, testQueues, null, SolaceTestRecord.getMapper()));
+		assertThat(exception.getMessage(), containsString("coder"));
 	}
 
 	@Test
 	public void testNullCoderOverride() {
-		thrown.expect(NullPointerException.class);
-		thrown.expectMessage("coder");
-
-		SolaceIO.read(testJcsmpProperties, testQueues, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
-				.withCoder(null);
+		NullPointerException exception = assertThrows(NullPointerException.class, () ->
+				SolaceIO.read(testJcsmpProperties, testQueues, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
+						.withCoder(null));
+		assertThat(exception.getMessage(), containsString("coder"));
 	}
 
 	@Test
 	public void testNullInboundMessageMapper() {
-		thrown.expect(NullPointerException.class);
-		thrown.expectMessage("inboundMessageMapper");
-
-		SolaceIO.read(testJcsmpProperties, testQueues, SolaceTestRecord.getCoder(), null);
+		NullPointerException exception = assertThrows(NullPointerException.class, () ->
+				SolaceIO.read(testJcsmpProperties, testQueues, SolaceTestRecord.getCoder(), null));
+		assertThat(exception.getMessage(), containsString("inboundMessageMapper"));
 	}
 
 	@Test
 	public void testNullInboundMessageMapperOverride() {
-		thrown.expect(NullPointerException.class);
-		thrown.expectMessage("inboundMessageMapper");
-
-		SolaceIO.read(testJcsmpProperties, testQueues, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
-				.withInboundMessageMapper(null);
+		NullPointerException exception = assertThrows(NullPointerException.class, () ->
+				SolaceIO.read(testJcsmpProperties, testQueues, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
+						.withInboundMessageMapper(null));
+		assertThat(exception.getMessage(), containsString("inboundMessageMapper"));
 	}
 
-	@Test
-	public void testAdvanceTimeoutInMillisZero() {
-		thrown.expect(IllegalArgumentException.class);
-		thrown.expectMessage("advanceTimeoutInMillis must be greater than 0");
-
-		SolaceIO.read(testJcsmpProperties, testQueues, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
-				.withAdvanceTimeoutInMillis(0);
+	@ParameterizedTest
+	@ValueSource(ints = {0, -1})
+	public void testInvalidAdvanceTimeoutInMillis(int advanceTimeout) {
+		IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+				SolaceIO.read(testJcsmpProperties, testQueues, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
+						.withAdvanceTimeoutInMillis(advanceTimeout));
+		assertThat(exception.getMessage(), containsString("advanceTimeoutInMillis must be greater than 0"));
 	}
 
-	@Test
-	public void testAdvanceTimeoutInMillisNegative() {
-		thrown.expect(IllegalArgumentException.class);
-		thrown.expectMessage("advanceTimeoutInMillis must be greater than 0");
-
-		SolaceIO.read(testJcsmpProperties, testQueues, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
-				.withAdvanceTimeoutInMillis(-1);
+	@ParameterizedTest
+	@ValueSource(longs = {0, -1})
+	public void testInvalidMaxNumRecords(long maxNumRecords) {
+		IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+				SolaceIO.read(testJcsmpProperties, testQueues, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
+						.withMaxNumRecords(maxNumRecords));
+		assertThat(exception.getMessage(), containsString("maxNumRecords must be greater than 0"));
 	}
 
-	@Test
-	public void testMaxNumRecordsZero() {
-		thrown.expect(IllegalArgumentException.class);
-		thrown.expectMessage("maxNumRecords must be greater than 0");
-
-		SolaceIO.read(testJcsmpProperties, testQueues, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
-				.withMaxNumRecords(0);
-	}
-
-	@Test
-	public void testMaxNumRecordsNegative() {
-		thrown.expect(IllegalArgumentException.class);
-		thrown.expectMessage("maxNumRecords must be greater than 0");
-
-		SolaceIO.read(testJcsmpProperties, testQueues, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
-				.withMaxNumRecords(-1);
-	}
-
-	@Test
-	public void testMaxReadTimeZero() {
-		thrown.expect(IllegalArgumentException.class);
-		thrown.expectMessage("maxReadTime must be greater than 0");
-
-		SolaceIO.read(testJcsmpProperties, testQueues, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
-				.withMaxReadTime(Duration.ZERO);
-	}
-
-	@Test
-	public void testMaxReadTimeNegative() {
-		thrown.expect(IllegalArgumentException.class);
-		thrown.expectMessage("maxReadTime must be greater than 0");
-
-		SolaceIO.read(testJcsmpProperties, testQueues, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
-				.withMaxReadTime(new Duration(-1));
+	@ParameterizedTest
+	@ValueSource(longs = {0, -1})
+	public void testInvalidMaxReadTime(long maxReadTime) {
+		IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+				SolaceIO.read(testJcsmpProperties, testQueues, SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
+						.withMaxReadTime(new Duration(maxReadTime)));
+		assertThat(exception.getMessage(), containsString("maxReadTime must be greater than 0"));
 	}
 }

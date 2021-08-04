@@ -1,4 +1,4 @@
-package com.solace.connector.beam;
+package com.solace.connector.beam.examples.test;
 
 import java.util.Optional;
 

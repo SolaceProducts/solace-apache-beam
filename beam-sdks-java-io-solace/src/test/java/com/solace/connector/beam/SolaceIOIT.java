@@ -3,8 +3,7 @@ package com.solace.connector.beam;
 import com.solace.connector.beam.test.fn.ExtractSolacePayloadFn;
 import com.solace.connector.beam.test.transform.CountMessagesPTransform;
 import com.solace.connector.beam.test.util.GoogleDataflowUtil;
-import com.solace.semp.v2.action.ApiException;
-import com.solace.semp.v2.config.model.MsgVpnQueue;
+import com.solace.test.integration.semp.v2.config.model.ConfigMsgVpnQueue;
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.ConsumerFlowProperties;
 import com.solacesystems.jcsmp.EndpointProperties;
@@ -14,7 +13,6 @@ import com.solacesystems.jcsmp.JCSMPException;
 import com.solacesystems.jcsmp.JCSMPFactory;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import com.solacesystems.jcsmp.JCSMPSession;
-import com.solacesystems.jcsmp.JCSMPTransportException;
 import com.solacesystems.jcsmp.Queue;
 import com.solacesystems.jcsmp.XMLMessageProducer;
 import org.apache.beam.runners.dataflow.TestDataflowPipelineOptions;
@@ -26,9 +24,7 @@ import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
@@ -50,15 +46,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
 
 @RunWith(JUnit4.class)
 public class SolaceIOIT extends ITBase {
-	@Rule public ExpectedException thrown = ExpectedException.none();
-
 	private List<String> testQueues;
 	private List<String> expectedMsgPayloads;
 	private EndpointProperties endpointProperties;
@@ -96,7 +92,7 @@ public class SolaceIOIT extends ITBase {
 	public void testBasic() throws Exception {
 		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,
 				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
-				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getNumUniqueQueues());
+				.withMaxNumRecords((long) NUM_MSGS_PER_QUEUE * getNumUniqueQueues());
 
 		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
 		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
@@ -114,7 +110,7 @@ public class SolaceIOIT extends ITBase {
 
 		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,
 				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
-				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getNumUniqueQueues());
+				.withMaxNumRecords((long) NUM_MSGS_PER_QUEUE * getNumUniqueQueues());
 
 		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
 		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
@@ -132,7 +128,7 @@ public class SolaceIOIT extends ITBase {
 
 		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,
 				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
-				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getNumUniqueQueues());
+				.withMaxNumRecords((long) NUM_MSGS_PER_QUEUE * getNumUniqueQueues());
 
 		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
 		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
@@ -147,11 +143,11 @@ public class SolaceIOIT extends ITBase {
 	@Test
 	public void testExclusiveQueue() throws Exception {
 		sempOps.updateQueue(testJcsmpProperties, testQueues.get(0),
-				new MsgVpnQueue().accessType(MsgVpnQueue.AccessTypeEnum.EXCLUSIVE));
+				new ConfigMsgVpnQueue().accessType(ConfigMsgVpnQueue.AccessTypeEnum.EXCLUSIVE));
 
 		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,
 				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
-				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getNumUniqueQueues());
+				.withMaxNumRecords((long) NUM_MSGS_PER_QUEUE * getNumUniqueQueues());
 
 		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
 		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
@@ -167,11 +163,11 @@ public class SolaceIOIT extends ITBase {
 	public void testMultiOnSameExclusiveQueue() throws Exception {
 		testQueues = Arrays.asList(testQueues.get(0), testQueues.get(0));
 		sempOps.updateQueue(testJcsmpProperties, testQueues.get(0),
-				new MsgVpnQueue().accessType(MsgVpnQueue.AccessTypeEnum.EXCLUSIVE));
+				new ConfigMsgVpnQueue().accessType(ConfigMsgVpnQueue.AccessTypeEnum.EXCLUSIVE));
 
 		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,
 				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
-				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getNumUniqueQueues());
+				.withMaxNumRecords((long) NUM_MSGS_PER_QUEUE * getNumUniqueQueues());
 
 		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
 		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
@@ -196,7 +192,7 @@ public class SolaceIOIT extends ITBase {
 
 		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,
 				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
-				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getNumUniqueQueues());
+				.withMaxNumRecords((long) NUM_MSGS_PER_QUEUE * getNumUniqueQueues());
 
 		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
 		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
@@ -218,21 +214,16 @@ public class SolaceIOIT extends ITBase {
 		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,
 				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper());
 
-		thrown.expect(RuntimeException.class);
+		testPipeline.apply(read);
+		RuntimeException exception = assertThrows(RuntimeException.class, testPipeline::run);
 
 		// For whatever reason Google Dataflow isn't returning nested Exceptions
 		// Restricting these assertions to non Dataflow runners
 		if (!pipelineOptions.getRunner().equals(TestDataflowRunner.class)) {
-			thrown.expectCause(instanceOf(IOException.class));
-			thrown.expectMessage("Failed to start UnboundSolaceReader");
-			thrown.expectCause(hasProperty("cause", allOf(
-					instanceOf(JCSMPTransportException.class),
-					hasProperty("message", containsString("Error communicating with the router"))
-			)));
+			assertThat(exception.getMessage(), containsString("Failed to start UnboundSolaceReader"));
+			assertThat(exception.getCause(), instanceOf(IOException.class));
+			assertThat(exception.getCause().getCause(), instanceOf(JCSMPException.class));
 		}
-
-		testPipeline.apply(read);
-		testPipeline.run();
 	}
 
 	@Test
@@ -242,21 +233,19 @@ public class SolaceIOIT extends ITBase {
 		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,
 				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper());
 
-		thrown.expect(RuntimeException.class);
+		testPipeline.apply(read);
+		RuntimeException exception = assertThrows(RuntimeException.class, testPipeline::run);
 
 		// For whatever reason Google Dataflow isn't returning nested Exceptions
 		// Restricting these assertions to only DirectRunner
 		if (!pipelineOptions.getRunner().equals(TestDataflowRunner.class)) {
-			thrown.expectCause(instanceOf(IOException.class));
-			thrown.expectMessage("Failed to start UnboundSolaceReader");
-			thrown.expectCause(hasProperty("cause", allOf(
+			assertThat(exception.getMessage(), containsString("Failed to start UnboundSolaceReader"));
+			assertThat(exception.getCause(), instanceOf(IOException.class));
+			assertThat(exception.getCause().getCause(), allOf(
 					instanceOf(JCSMPErrorResponseException.class),
 					hasProperty("message", containsString("Unknown Queue"))
-			)));
+			));
 		}
-
-		testPipeline.apply(read);
-		testPipeline.run();
 	}
 
 	@Test
@@ -290,7 +279,7 @@ public class SolaceIOIT extends ITBase {
 		LOG.info("Creating pipeline...");
 		SolaceIO.Read<SolaceTestRecord> read = SolaceIO.read(testJcsmpProperties, testQueues,
 				SolaceTestRecord.getCoder(), SolaceTestRecord.getMapper())
-				.withMaxNumRecords(NUM_MSGS_PER_QUEUE * getNumUniqueQueues());
+				.withMaxNumRecords((long) NUM_MSGS_PER_QUEUE * getNumUniqueQueues());
 
 		PCollection<String> messagePayloads = testPipeline.apply(read).apply(ParDo.of(new ExtractSolacePayloadFn()));
 		PCollection<Long> counts = messagePayloads.apply(new CountMessagesPTransform());
@@ -457,7 +446,8 @@ public class SolaceIOIT extends ITBase {
 		}
 	}
 
-	private void drainQueues() throws ApiException {
+	private void drainQueues() throws com.solace.test.integration.semp.v2.monitor.ApiException,
+			com.solace.test.integration.semp.v2.action.ApiException {
 		sempOps.drainQueues(testJcsmpProperties, testQueues);
 		expectedMsgPayloads = new ArrayList<>();
 	}
