@@ -133,6 +133,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 				flowReceiver = session.createFlow(null, flow_prop, endpointProps);
 				// Start the consumer
 				flowReceiver.start();
+				LOG.info("Binding Solace session [{}] to queue[{}]...", this.clientName, source.getQueueName());
 			}
 
 			// Create Monitor Thread
@@ -218,6 +219,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 
 	@Override
 	public void close() throws IOException {
+		LOG.info("Close the Solace session [{}] on queue[{}]...", clientName, source.getQueueName());
 		active.set(false);
 		try {
 			if (flowReceiver != null) {
