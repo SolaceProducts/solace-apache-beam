@@ -222,7 +222,7 @@ public class SolaceIO {
 		public PCollection<T> expand(PBegin input) {
 			validateConfig();
 
-			org.apache.beam.sdk.io.Read.Unbounded<T> unbounded = org.apache.beam.sdk.io.Read
+			org.apache.beam.sdk.io.ReadFix.Unbounded<T> unbounded = org.apache.beam.sdk.io.ReadFix
 					.from(new UnboundedSolaceSource<>(this));
 
 			PTransform<PBegin, PCollection<T>> transform = unbounded;
