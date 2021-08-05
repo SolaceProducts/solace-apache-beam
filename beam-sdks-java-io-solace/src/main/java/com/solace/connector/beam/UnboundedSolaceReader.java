@@ -113,7 +113,19 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 				msgBusSempUtil = new MsgBusSempUtil(session);
 				msgBusSempUtil.start();
 			}
+		} catch (Exception ex) {
+			String msg = String.format("Failed to start UnboundSolaceReader for Solace session %s for queue: %s",
+					clientName, source.getQueueName());
+			LOG.error(msg, ex);
+			session.closeSession();
+			throw new IOException(msg, ex);
+		}
+	}
 
+	@Override
+	public boolean start() throws IOException {
+		setUp();
+		try {
 			if (flowReceiver == null) {
 				// do NOT provision the queue, so "Unknown Queue" exception will be threw if the
 				// queue is not existed already
@@ -141,19 +153,6 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 				activityMonitor = new ActivityMonitor<>(this, source.getSpec().advanceTimeoutInMillis());
 				activityMonitor.start();
 			}
-		} catch (Exception ex) {
-			String msg = String.format("Failed to start UnboundSolaceReader for Solace session %s for queue: %s",
-					clientName, source.getQueueName());
-			LOG.error(msg, ex);
-			session.closeSession();
-			throw new IOException(msg, ex);
-		}
-	}
-
-	@Override
-	public boolean start() throws IOException {
-		setUp();
-		try {
 			return advance();
 		} catch (Exception ex) {
 			String msg = String.format("Failed to start UnboundSolaceReader for Solace session %s for queue: %s",
