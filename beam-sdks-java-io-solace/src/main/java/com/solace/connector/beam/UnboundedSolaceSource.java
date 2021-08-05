@@ -52,10 +52,14 @@ class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpointMark> 
 				spec.queues().size(), desiredNumSplits, options);
 
 		List<UnboundedSolaceSource<T>> sourceList = new ArrayList<>();
-		for (String queueName : spec.queues()) {
-			UnboundedSolaceSource<T> source = new UnboundedSolaceSource<T>(spec);
-			source.queueName = queueName;
-			sourceList.add(source);
+		// duplicate the sources to increase throughput
+		// each queue should get *desiredNumSplits* sources/readers
+		for (int i=0; i<desiredNumSplits; ++i) {
+			for (String queueName : spec.queues()) {
+					UnboundedSolaceSource<T> source = new UnboundedSolaceSource<T>(spec);
+					source.queueName = queueName;
+					sourceList.add(source);
+			}
 		}
 		return sourceList;
 	}
