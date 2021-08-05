@@ -81,7 +81,7 @@ class SolaceCheckpointMark implements UnboundedSource.CheckpointMark, Serializab
 	@Override
 	public int hashCode() {
 		// Effective Java Item 11
-		return clientName.hashCode() * 31 + System.identityHashCode(reader);
+		return System.identityHashCode(clientName) * 31 + System.identityHashCode(reader);
 	}
 
 }
