@@ -4,6 +4,7 @@ import com.google.api.services.dataflow.model.Job;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.solace.connector.beam.test.fn.ExtractSolacePayloadFn;
+import com.solace.connector.beam.test.pubsub.CallbackCorrelationKey;
 import com.solace.connector.beam.test.transform.FileWriterPTransform;
 import com.solace.connector.beam.test.util.GoogleDataflowUtil;
 import com.solace.connector.beam.test.util.GoogleStorageUtil;
@@ -64,7 +65,7 @@ import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
 @RunWith(JUnit4.class)
-public class SolaceIOLifecycleDataflowIT extends ITBase {
+public class SolaceIOLifecycleDataflowIT extends TestPipelineITBase {
 	@Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 	private List<String> testQueues;
 

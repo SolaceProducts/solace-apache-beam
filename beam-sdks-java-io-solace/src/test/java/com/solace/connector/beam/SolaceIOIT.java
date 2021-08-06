@@ -1,6 +1,7 @@
 package com.solace.connector.beam;
 
 import com.solace.connector.beam.test.fn.ExtractSolacePayloadFn;
+import com.solace.connector.beam.test.pubsub.PublisherEventHandler;
 import com.solace.connector.beam.test.transform.CountMessagesPTransform;
 import com.solace.connector.beam.test.util.GoogleDataflowUtil;
 import com.solace.test.integration.semp.v2.config.model.ConfigMsgVpnQueue;
@@ -54,7 +55,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 
 @RunWith(JUnit4.class)
-public class SolaceIOIT extends ITBase {
+public class SolaceIOIT extends TestPipelineITBase {
 	private List<String> testQueues;
 	private List<String> expectedMsgPayloads;
 	private EndpointProperties endpointProperties;

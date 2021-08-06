@@ -1,6 +1,6 @@
-package com.solace.connector.beam.examples.test.extension;
+package com.solace.connector.beam.test.extension;
 
-import com.solace.connector.beam.examples.test.ITEnv;
+import com.solace.connector.beam.ITEnv;
 import com.solace.test.integration.semp.v2.SempV2Api;
 import com.solace.test.integration.semp.v2.config.ApiException;
 import com.solace.test.integration.semp.v2.config.model.ConfigMsgVpnClientUsername;
@@ -75,7 +75,7 @@ public class PubSubPlusExtension implements AfterEachCallback, ParameterResolver
 									newContainer.getAdminUsername(), newContainer.getAdminPassword())
 									.config()
 									.updateMsgVpnClientUsername("default", "default",
-											new ConfigMsgVpnClientUsername().password("default"), null);
+									new ConfigMsgVpnClientUsername().password("default"), null);
 						} catch (ApiException e) {
 							throw new ParameterResolutionException("Failed to create PubSub+ container", e);
 						}
