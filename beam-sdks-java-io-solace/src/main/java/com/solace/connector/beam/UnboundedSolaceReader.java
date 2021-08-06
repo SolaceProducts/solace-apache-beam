@@ -52,6 +52,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 	private AtomicBoolean isActive = new AtomicBoolean(true); // Only set to false after timeout
 	private AtomicBoolean endMonitor = new AtomicBoolean(false);
 
+	private ActivityMonitor<T> activityMonitor;
 	private static final long statsPeriodMs = 120000;
 
 
@@ -99,43 +100,60 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 		this.readerStats = new SolaceReaderStats();
 	}
 
+	// refactored to prevent calls from queryQueueBytes() from advance()-ing the cursor
+	public void setUp() throws IOException {
+		try { 
+			if (msgBusSempUtil == null) {
+				final JCSMPProperties properties = source.getSpec().jcsmpProperties();
+
+				session = JCSMPFactory.onlyInstance().createSession(properties);
+				clientName = (String) session.getProperty(JCSMPProperties.CLIENT_NAME);
+				session.connect();
+
+				msgBusSempUtil = new MsgBusSempUtil(session);
+				msgBusSempUtil.start();
+			}
+		} catch (Exception ex) {
+			String msg = String.format("Failed to start UnboundSolaceReader for Solace session %s for queue: %s",
+					clientName, source.getQueueName());
+			LOG.error(msg, ex);
+			session.closeSession();
+			throw new IOException(msg, ex);
+		}
+	}
+
 	@Override
 	public boolean start() throws IOException {
-		LOG.info("Starting UnboundSolaceReader for Solace queue: {} ...", source.getQueueName());
+		setUp();
 		try {
-			final JCSMPProperties properties = source.getSpec().jcsmpProperties();
-			session = JCSMPFactory.onlyInstance().createSession(properties);
-			clientName = (String) session.getProperty(JCSMPProperties.CLIENT_NAME);
-			session.connect();
+			if (flowReceiver == null) {
+				// do NOT provision the queue, so "Unknown Queue" exception will be threw if the
+				// queue is not existed already
+				final Queue queue = JCSMPFactory.onlyInstance().createQueue(source.getQueueName());
 
-			msgBusSempUtil = new MsgBusSempUtil(session);
-			msgBusSempUtil.start();
+				// Create a Flow be able to bind to and consume messages from the Queue.
+				flow_prop.setEndpoint(queue);
 
-			// do NOT provision the queue, so "Unknown Queue" exception will be threw if the
-			// queue is not existed already
-			final Queue queue = JCSMPFactory.onlyInstance().createQueue(source.getQueueName());
+				// will ack the messages in checkpoint
+				flow_prop.setAckMode(JCSMPProperties.SUPPORTED_MESSAGE_ACK_CLIENT);
 
-			// Create a Flow be able to bind to and consume messages from the Queue.
-			flow_prop.setEndpoint(queue);
+				this.useSenderTimestamp = source.getSpec().useSenderTimestamp();
 
-			// will ack the messages in checkpoint
-			flow_prop.setAckMode(JCSMPProperties.SUPPORTED_MESSAGE_ACK_CLIENT);
+				readerStats.setLastReportTime(Instant.now());
 
-			this.useSenderTimestamp = source.getSpec().useSenderTimestamp();
-
-			readerStats.setLastReportTime(Instant.now());
-
-			// bind to the queue, passing null as message listener for no async callback
-			flowReceiver = session.createFlow(null, flow_prop, endpointProps);
-			// Start the consumer
-			flowReceiver.start();
-			LOG.info("Binding Solace session [{}] to queue[{}]...", this.clientName, source.getQueueName());
+				// bind to the queue, passing null as message listener for no async callback
+				flowReceiver = session.createFlow(null, flow_prop, endpointProps);
+				// Start the consumer
+				flowReceiver.start();
+				LOG.info("Binding Solace session [{}] to queue[{}]...", this.clientName, source.getQueueName());
+			}
 
 			// Create Monitor Thread
-			ActivityMonitor<T> myMonitor = new ActivityMonitor<>(this, source.getSpec().advanceTimeoutInMillis());
-			myMonitor.start();
+			if (activityMonitor == null) {
+				activityMonitor = new ActivityMonitor<>(this, source.getSpec().advanceTimeoutInMillis());
+				activityMonitor.start();
+			}
 			return advance();
-
 		} catch (Exception ex) {
 			String msg = String.format("Failed to start UnboundSolaceReader for Solace session %s for queue: %s",
 					clientName, source.getQueueName());
@@ -288,6 +306,9 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 				queueName, vpnName);
 		String queryString = "/rpc-reply/rpc/show/queue/queues/queue/info/current-spool-usage-in-bytes";
 		try {
+			// Beam 2.25 calls getSplitBacklogBytes() from new unstarted Readers
+			// call setUp here to create the msgBusSempUtil so that the backlog can be queried
+			setUp();
 			String queryResults = msgBusSempUtil.queryRouter(sempShowQueue, queryString);
 			queueBytes = Long.parseLong(queryResults);
 		} catch (JCSMPException e) {
