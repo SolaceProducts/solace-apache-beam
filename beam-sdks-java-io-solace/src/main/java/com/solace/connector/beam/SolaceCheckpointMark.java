@@ -21,10 +21,10 @@ class SolaceCheckpointMark implements UnboundedSource.CheckpointMark, Serializab
 	private static final long serialVersionUID = 42L;
 	private static final Logger LOG = LoggerFactory.getLogger(SolaceCheckpointMark.class);
 
-	private final UUID id;
+	private transient final UUID id;
 	@Nullable
 	private transient UnboundedSolaceReader<?> reader;
-	private String clientName;
+	private transient String clientName;
 	private transient BlockingQueue<UnboundedSolaceReader.Message> ackQueue;
 
 	public SolaceCheckpointMark(UnboundedSolaceReader<?> reader,
