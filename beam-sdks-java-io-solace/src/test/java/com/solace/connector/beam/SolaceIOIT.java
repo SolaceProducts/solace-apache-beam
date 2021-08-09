@@ -210,7 +210,6 @@ public class SolaceIOIT extends TestPipelineITBase {
 
 	@Test
 	public void testFailBrokerCxn() {
-		testJcsmpProperties.setProperty(JCSMPProperties.HOST, "localhost");
 		testJcsmpProperties.setProperty(JCSMPProperties.USERNAME, "dummy");
 		testJcsmpProperties.setProperty(JCSMPProperties.PASSWORD, "dummy");
 		testJcsmpProperties.setProperty(JCSMPProperties.VPN_NAME, "dummy");
