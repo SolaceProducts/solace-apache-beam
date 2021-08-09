@@ -1,9 +1,6 @@
 package com.solace.connector.beam.test.extension;
 
-import com.solace.connector.beam.ITEnv;
 import com.solace.test.integration.semp.v2.SempV2Api;
-import com.solace.test.integration.semp.v2.config.ApiException;
-import com.solace.test.integration.semp.v2.config.model.ConfigMsgVpnClientUsername;
 import com.solace.test.integration.testcontainer.PubSubPlusContainer;
 import com.solacesystems.jcsmp.EndpointProperties;
 import com.solacesystems.jcsmp.JCSMPException;
@@ -11,7 +8,6 @@ import com.solacesystems.jcsmp.JCSMPFactory;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import com.solacesystems.jcsmp.JCSMPSession;
 import com.solacesystems.jcsmp.Queue;
-import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -22,15 +18,19 @@ import org.junit.jupiter.api.extension.ParameterResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.function.Supplier;
+
 public class PubSubPlusExtension implements AfterEachCallback, ParameterResolver {
 	private static final Logger LOG = LoggerFactory.getLogger(PubSubPlusExtension.class);
 	private static final Namespace NAMESPACE = Namespace.create(PubSubPlusExtension.class);
 	private final boolean usePubSubPlusTestcontainer;
 
 	public PubSubPlusExtension() {
-		usePubSubPlusTestcontainer = ITEnv.Test.USE_TESTCONTAINERS.get("true").equalsIgnoreCase("true") &&
-				(!ITEnv.Test.RUNNER.isPresent() ||
-						ITEnv.Test.RUNNER.get().equalsIgnoreCase(DirectRunner.class.getSimpleName()));
+		this(null);
+	}
+
+	public PubSubPlusExtension(Supplier<Boolean> useTestcontainers) {
+		usePubSubPlusTestcontainer = useTestcontainers != null ? useTestcontainers.get() : true;
 	}
 
 	@Override
@@ -70,15 +70,7 @@ public class PubSubPlusExtension implements AfterEachCallback, ParameterResolver
 						LOG.info("Creating PubSub+ container");
 						PubSubPlusContainer newContainer = new PubSubPlusContainer();
 						newContainer.start();
-						try {
-							new SempV2Api(newContainer.getOrigin(PubSubPlusContainer.Port.SEMP),
-									newContainer.getAdminUsername(), newContainer.getAdminPassword())
-									.config()
-									.updateMsgVpnClientUsername("default", "default",
-									new ConfigMsgVpnClientUsername().password("default"), null);
-						} catch (ApiException e) {
-							throw new ParameterResolutionException("Failed to create PubSub+ container", e);
-						}
+						containerStartCallback(newContainer);
 						return new PubSubPlusContainerResource(newContainer);
 					}, PubSubPlusContainerResource.class).getContainer();
 		} else {
@@ -87,18 +79,8 @@ public class PubSubPlusExtension implements AfterEachCallback, ParameterResolver
 
 		if (Queue.class.isAssignableFrom(paramType) || JCSMPSession.class.isAssignableFrom(paramType) ||
 				JCSMPProperties.class.isAssignableFrom(paramType)) {
-			JCSMPProperties jcsmpProperties = new JCSMPProperties();
-			if (container != null) {
-				jcsmpProperties.setProperty(JCSMPProperties.HOST, container.getOrigin(PubSubPlusContainer.Port.SMF));
-				jcsmpProperties.setProperty(JCSMPProperties.USERNAME, "default");
-				jcsmpProperties.setProperty(JCSMPProperties.PASSWORD, "default");
-				jcsmpProperties.setProperty(JCSMPProperties.VPN_NAME, "default");
-			} else {
-				jcsmpProperties.setProperty(JCSMPProperties.HOST, ITEnv.Solace.HOST.get("tcp://localhost:55555"));
-				jcsmpProperties.setProperty(JCSMPProperties.USERNAME, ITEnv.Solace.USERNAME.get("default"));
-				jcsmpProperties.setProperty(JCSMPProperties.PASSWORD, ITEnv.Solace.PASSWORD.get("default"));
-				jcsmpProperties.setProperty(JCSMPProperties.VPN_NAME, ITEnv.Solace.VPN.get("default"));
-			}
+			JCSMPProperties jcsmpProperties = container != null ? createContainerJcsmpProperties(container) :
+					createDefaultJcsmpProperties();
 
 			if (JCSMPProperties.class.isAssignableFrom(paramType)) {
 				return jcsmpProperties;
@@ -130,16 +112,34 @@ public class PubSubPlusExtension implements AfterEachCallback, ParameterResolver
 				return queue;
 			}, Queue.class);
 		} else if (SempV2Api.class.isAssignableFrom(paramType)) {
-			if (container != null) {
-				return new SempV2Api(container.getOrigin(PubSubPlusContainer.Port.SEMP), container.getAdminUsername(),
-						container.getAdminPassword());
-			} else {
-				return new SempV2Api(ITEnv.Solace.MGMT_HOST.get("http://localhost:8080"),
-						ITEnv.Solace.MGMT_USERNAME.get("admin"), ITEnv.Solace.MGMT_PASSWORD.get("admin"));
-			}
+			return container != null ? createContainerSempV2Api(container) : createDefaultSempV2Api();
 		} else {
 			throw new IllegalArgumentException(String.format("Parameter type %s is not supported", paramType));
 		}
+	}
+
+	protected void containerStartCallback(PubSubPlusContainer container) throws ParameterResolutionException {
+	}
+
+	protected JCSMPProperties createContainerJcsmpProperties(PubSubPlusContainer container) {
+		JCSMPProperties jcsmpProperties = new JCSMPProperties();
+		jcsmpProperties.setProperty(JCSMPProperties.HOST, container.getOrigin(PubSubPlusContainer.Port.SMF));
+		jcsmpProperties.setProperty(JCSMPProperties.USERNAME, "default");
+		jcsmpProperties.setProperty(JCSMPProperties.VPN_NAME, "default");
+		return jcsmpProperties;
+	}
+
+	protected JCSMPProperties createDefaultJcsmpProperties() {
+		return new JCSMPProperties();
+	}
+
+	protected SempV2Api createContainerSempV2Api(PubSubPlusContainer container) {
+		return new SempV2Api(container.getOrigin(PubSubPlusContainer.Port.SEMP), container.getAdminUsername(),
+				container.getAdminPassword());
+	}
+
+	protected SempV2Api createDefaultSempV2Api() {
+		return new SempV2Api("http://localhost:8080", "admin", "admin");
 	}
 
 	private static class PubSubPlusContainerResource implements ExtensionContext.Store.CloseableResource {

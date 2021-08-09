@@ -66,28 +66,12 @@ public abstract class TestPipelineITBase {
 	public static void initTestProperties() throws Exception {
 		PipelineOptionsFactory.register(SolaceIOTestPipelineOptions.class);
 		sharedPipelineOptions = TestPipeline.testingPipelineOptions();
-
-		if (ITEnv.Test.RUNNER.isPresent()) {
-			String runnerName = ITEnv.Test.RUNNER.get();
-			if (runnerName.equals(TestDataflowRunner.class.getSimpleName())) {
-				sharedPipelineOptions.setRunner(TestDataflowRunner.class);
-			} else if (runnerName.equals(DirectRunner.class.getSimpleName())) {
-				sharedPipelineOptions.setRunner(DirectRunner.class);
-			} else {
-				fail(String.format("Runner %s is not supported. Please provide one of: [%s]",
-						sharedPipelineOptions.getRunner().getSimpleName(),
-						String.join(", ",
-								TestDataflowRunner.class.getSimpleName(),
-								DirectRunner.class.getSimpleName())));
-			}
-		}
+		SolaceIOTestPipelineOptions solaceOps = sharedPipelineOptions.as(SolaceIOTestPipelineOptions.class);
 
 		if (sharedPipelineOptions.getRunner().equals(TestDataflowRunner.class)) {
 			TestDataflowPipelineOptions dataflowOps = sharedPipelineOptions.as(TestDataflowPipelineOptions.class);
 
 			LOG.info(String.format("Extracting env to pipeline options for %s", TestDataflowRunner.class.getSimpleName()));
-			dataflowOps.setProject(ITEnv.Dataflow.PROJECT.get(dataflowOps.getProject()));
-			dataflowOps.setTempRoot(ITEnv.Dataflow.TMP_ROOT.get(dataflowOps.getTempRoot()));
 			dataflowOps.setGcpTempLocation(dataflowOps.getTempRoot());
 
 			LOG.info(String.format("Setting fixed pipeline options for %s", TestDataflowRunner.class.getSimpleName()));
@@ -103,14 +87,13 @@ public abstract class TestPipelineITBase {
 					String.join(", ",
 							TestDataflowRunner.class.getSimpleName(),
 							DirectRunner.class.getSimpleName())));
-		} else if (ITEnv.Test.USE_TESTCONTAINERS.get("true").equalsIgnoreCase("true")) {
+		} else if (solaceOps.getUseTestcontainers()) {
 			// Testcontainers only makes sense to be used with the direct runner
 			pubSubPlusContainer = new PubSubPlusContainer();
 			pubSubPlusContainer.start();
 		}
 
 		LOG.info("Initializing PubSub+ broker credentials");
-		SolaceIOTestPipelineOptions solaceOps = sharedPipelineOptions.as(SolaceIOTestPipelineOptions.class);
 		PipelineOptionsValidator.validate(SolaceIOTestPipelineOptions.class, solaceOps);
 
 		detectedJcsmpProperties = new JCSMPProperties();
@@ -128,14 +111,13 @@ public abstract class TestPipelineITBase {
 					.updateMsgVpnClientUsername("default", "default",
 					new ConfigMsgVpnClientUsername().password("default"), null);
 		} else {
-			detectedJcsmpProperties.setProperty(JCSMPProperties.HOST, ITEnv.Solace.HOST.get(solaceOps.getSolaceHost()));
-			detectedJcsmpProperties.setProperty(JCSMPProperties.USERNAME, ITEnv.Solace.USERNAME.get(solaceOps.getSolaceUsername()));
-			detectedJcsmpProperties.setProperty(JCSMPProperties.PASSWORD, ITEnv.Solace.PASSWORD.get(solaceOps.getSolacePassword()));
-			detectedJcsmpProperties.setProperty(JCSMPProperties.VPN_NAME, ITEnv.Solace.VPN.get(solaceOps.getSolaceVpnName()));
+			detectedJcsmpProperties.setProperty(JCSMPProperties.HOST, solaceOps.getPspHost());
+			detectedJcsmpProperties.setProperty(JCSMPProperties.USERNAME, solaceOps.getPspUsername());
+			detectedJcsmpProperties.setProperty(JCSMPProperties.PASSWORD, solaceOps.getPspPassword());
+			detectedJcsmpProperties.setProperty(JCSMPProperties.VPN_NAME, solaceOps.getPspVpnName());
 
-			sempV2Api = new SempV2Api(ITEnv.Solace.MGMT_HOST.get(solaceOps.getSolaceMgmtHost()),
-					ITEnv.Solace.MGMT_USERNAME.get(solaceOps.getSolaceMgmtUsername()),
-					ITEnv.Solace.MGMT_PASSWORD.get(solaceOps.getSolaceMgmtPassword()));
+			sempV2Api = new SempV2Api(solaceOps.getPspMgmtHost(), solaceOps.getPspMgmtUsername(),
+					solaceOps.getPspMgmtPassword());
 		}
 	}
 

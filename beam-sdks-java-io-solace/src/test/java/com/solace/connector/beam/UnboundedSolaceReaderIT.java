@@ -1,6 +1,6 @@
 package com.solace.connector.beam;
 
-import com.solace.connector.beam.test.extension.PubSubPlusExtension;
+import com.solace.connector.beam.test.extension.BeamPubSubPlusExtension;
 import com.solace.connector.beam.test.pubsub.PublisherEventHandler;
 import com.solace.connector.beam.test.util.ThrowingConsumer;
 import com.solace.test.integration.semp.v2.SempV2Api;
@@ -22,7 +22,7 @@ import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@ExtendWith(PubSubPlusExtension.class)
+@ExtendWith(BeamPubSubPlusExtension.class)
 public class UnboundedSolaceReaderIT {
 	private UnboundedSolaceReader<SolaceTestRecord> reader;
 

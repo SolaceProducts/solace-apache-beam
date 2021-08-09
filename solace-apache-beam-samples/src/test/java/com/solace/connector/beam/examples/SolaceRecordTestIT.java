@@ -1,11 +1,10 @@
 package com.solace.connector.beam.examples;
 
-import com.solace.connector.beam.examples.test.ITEnv;
+import com.solace.connector.beam.examples.test.extension.BeamPubSubPlusExtension;
 import com.solace.connector.beam.examples.test.extension.ExecutorServiceExtension;
 import com.solace.connector.beam.examples.test.extension.ExecutorServiceExtension.ExecSvc;
 import com.solace.connector.beam.examples.test.extension.LogCaptorExtension;
 import com.solace.connector.beam.examples.test.extension.LogCaptorExtension.LogCaptor;
-import com.solace.connector.beam.examples.test.extension.PubSubPlusExtension;
 import com.solacesystems.jcsmp.JCSMPException;
 import com.solacesystems.jcsmp.JCSMPFactory;
 import com.solacesystems.jcsmp.JCSMPProperties;
@@ -35,13 +34,12 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 @ExtendWith(ExecutorServiceExtension.class)
 @ExtendWith(LogCaptorExtension.class)
-@ExtendWith(PubSubPlusExtension.class)
+@ExtendWith(BeamPubSubPlusExtension.class)
 public class SolaceRecordTestIT {
 	@BeforeAll
 	public static void beforeAll() {
 		//TODO add support to run these test against Google Dataflow
-		assumeTrue(!ITEnv.Test.RUNNER.isPresent() ||
-						ITEnv.Test.RUNNER.get().equalsIgnoreCase(DirectRunner.class.getSimpleName()),
+		assumeTrue(TestPipeline.testingPipelineOptions().getRunner().equals(DirectRunner.class),
 				"This test currently only supports the direct runner");
 	}
 
