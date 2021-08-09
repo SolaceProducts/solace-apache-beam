@@ -15,6 +15,9 @@ import com.solacesystems.jcsmp.Queue;
 import com.solacesystems.jcsmp.TextMessage;
 import com.solacesystems.jcsmp.XMLMessageProducer;
 import org.apache.beam.runners.direct.DirectRunner;
+import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.PipelineOptionsValidator;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -24,6 +27,7 @@ import java.io.BufferedReader;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -69,6 +73,12 @@ public class SolaceRecordTestIT {
 		args.add(String.format("--cu=%s", jcsmpSession.getProperty(JCSMPProperties.USERNAME)));
 		args.add(String.format("--cp=%s", jcsmpSession.getProperty(JCSMPProperties.PASSWORD)));
 		args.add(String.format("--sql=%s", queue.getName()));
+		Optional.ofNullable(TestPipeline.testingPipelineOptions().as(ExperimentalOptions.class))
+				.map(options -> PipelineOptionsValidator.validate(ExperimentalOptions.class, options))
+				.map(ExperimentalOptions::getExperiments)
+				.map(experiments -> String.join(",", experiments))
+				.map(experiments -> String.format("--experiments=%s", experiments))
+				.ifPresent(args::add);
 
 		executorService.submit(() -> SolaceRecordTest.main(args.toArray(new String[0])));
 		Assertions.assertTimeoutPreemptively(Duration.ofMinutes(5), () -> {

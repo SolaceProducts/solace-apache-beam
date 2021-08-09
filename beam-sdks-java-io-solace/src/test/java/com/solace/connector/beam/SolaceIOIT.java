@@ -21,6 +21,7 @@ import org.apache.beam.runners.dataflow.TestDataflowRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -50,7 +51,9 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasProperty;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 
@@ -222,8 +225,11 @@ public class SolaceIOIT extends TestPipelineITBase {
 		// Restricting these assertions to non Dataflow runners
 		if (!pipelineOptions.getRunner().equals(TestDataflowRunner.class)) {
 			assertThat(exception.getMessage(), containsString("Failed to start UnboundSolaceReader"));
-			assertThat(exception.getCause(), instanceOf(IOException.class));
-			assertThat(exception.getCause().getCause(), instanceOf(JCSMPException.class));
+			int ioExceptionIndex = ExceptionUtils.indexOfThrowable(exception, IOException.class);
+			assertThat(ioExceptionIndex, greaterThan(-1));
+			assertThat(ExceptionUtils.getRootCause(exception), instanceOf(JCSMPException.class));
+			assertEquals(ioExceptionIndex + 1, ExceptionUtils.indexOfType(exception, JCSMPException.class,
+					ioExceptionIndex));
 		}
 	}
 
@@ -241,11 +247,14 @@ public class SolaceIOIT extends TestPipelineITBase {
 		// Restricting these assertions to only DirectRunner
 		if (!pipelineOptions.getRunner().equals(TestDataflowRunner.class)) {
 			assertThat(exception.getMessage(), containsString("Failed to start UnboundSolaceReader"));
-			assertThat(exception.getCause(), instanceOf(IOException.class));
-			assertThat(exception.getCause().getCause(), allOf(
+			int ioExceptionIndex = ExceptionUtils.indexOfThrowable(exception, IOException.class);
+			assertThat(ioExceptionIndex, greaterThan(-1));
+			assertThat(ExceptionUtils.getRootCause(exception), allOf(
 					instanceOf(JCSMPErrorResponseException.class),
 					hasProperty("message", containsString("Unknown Queue"))
 			));
+			assertEquals(ioExceptionIndex + 1, ExceptionUtils.indexOfType(exception,
+					JCSMPErrorResponseException.class, ioExceptionIndex));
 		}
 	}
 

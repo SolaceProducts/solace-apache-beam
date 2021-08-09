@@ -24,6 +24,10 @@ jobs:
     if: needs.dupe_check.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        experiments: [ "", "use_sdf_read", "use_deprecated_read" ]
+
     steps:
       - uses: actions/checkout@v2
         with:
@@ -49,7 +53,7 @@ jobs:
       - name: Install Test Support
         run: mvn clean install -f solace-integration-test-support/ -DskipTests
       - name: Build and Run Tests
-        run: mvn clean verify
+        run: mvn clean verify "-DbeamTestPipelineOptions=[\"--experiments=${{ matrix.experiments }}\"]"
         env:
           DATAFLOW_TEMP_ROOT: ${{ secrets.GCP_DATAFLOW_TEMP_ROOT }}
           SOLACE_HOST: ${{ secrets.SOLACE_HOST }}
