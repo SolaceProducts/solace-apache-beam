@@ -34,7 +34,6 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.*;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.Arrays;
@@ -44,14 +43,14 @@ import java.util.Map;
 
 /**
  * An example that takes binds to a Solace queue, consumes messages, and then writes them to BigQuery.
- * 
+ *
  * The code is written to handle payload of this format:
  * [{"date":"2020-06-06","sym":"XOM","time":"22:58","lowAskSize":20,"highAskSize":790,"lowBidPrice":43.13057,
  * "highBidPrice":44.95833,"lowBidSize":60,"highBidSize":770,"lowTradePrice":43.51274,"highTradePrice":45.41246,
  * "lowTradeSize":0,"highTradeSize":480,"lowAskPrice":43.67592,"highAskPrice":45.86658,"vwap":238.0331}]
- * 
+ *
  * You will need to make sure there is a BigQuery table with appropriate schema already created.
- * 
+ *
  * <p>By default, the examples will run with the {@code DirectRunner}. To run the pipeline on
  * Google Dataflow, specify:
  *
@@ -135,7 +134,7 @@ public class SolaceBigQuery {
 		boolean useSenderMsgId = options.getSmi();
 
 		TableSchema tableSchema = new TableSchema()
-						.setFields(ImmutableList.of(
+						.setFields(Arrays.asList(
 								new TableFieldSchema().setName("date").setType("DATE").setMode("NULLABLE"),
 								new TableFieldSchema().setName("sym").setType("STRING").setMode("NULLABLE"),
 								new TableFieldSchema().setName("time").setType("TIME").setMode("NULLABLE"),
@@ -172,7 +171,7 @@ public class SolaceBigQuery {
 		* 1. Reading message from Solace queue
 		* 2. Transforming the message and mapping it to a BigQuery Table Row
 		* 3. Writing the row to BigQuery
-		*/ 
+		*/
 		WriteResult input = pipeline
 				.apply(SolaceIO.read(jcsmpProperties, queues, SolaceTextRecord.getCoder(), SolaceTextRecord.getMapper())
 						.withUseSenderTimestamp(options.getSts())
@@ -183,7 +182,7 @@ public class SolaceBigQuery {
 					public void processElement(ProcessContext c) {
 
 						Map<String, String> parsedMap = new HashMap<String, String>();
-						
+
 						// Clean up the payload so we can easily map the values into a HashMap
 						String[] pairs = c.element().getPayload().replace("[", "")
 								.replace("]", "")
