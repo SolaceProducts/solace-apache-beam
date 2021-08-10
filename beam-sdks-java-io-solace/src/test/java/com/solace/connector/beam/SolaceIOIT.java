@@ -1,6 +1,7 @@
 package com.solace.connector.beam;
 
 import com.solace.connector.beam.test.fn.ExtractSolacePayloadFn;
+import com.solace.connector.beam.test.pubsub.PublisherEventHandler;
 import com.solace.connector.beam.test.transform.CountMessagesPTransform;
 import com.solace.connector.beam.test.util.GoogleDataflowUtil;
 import com.solace.test.integration.semp.v2.config.model.ConfigMsgVpnQueue;
@@ -20,6 +21,7 @@ import org.apache.beam.runners.dataflow.TestDataflowRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -49,12 +51,14 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasProperty;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 
 @RunWith(JUnit4.class)
-public class SolaceIOIT extends ITBase {
+public class SolaceIOIT extends TestPipelineITBase {
 	private List<String> testQueues;
 	private List<String> expectedMsgPayloads;
 	private EndpointProperties endpointProperties;
@@ -206,7 +210,6 @@ public class SolaceIOIT extends ITBase {
 
 	@Test
 	public void testFailBrokerCxn() {
-		testJcsmpProperties.setProperty(JCSMPProperties.HOST, "localhost");
 		testJcsmpProperties.setProperty(JCSMPProperties.USERNAME, "dummy");
 		testJcsmpProperties.setProperty(JCSMPProperties.PASSWORD, "dummy");
 		testJcsmpProperties.setProperty(JCSMPProperties.VPN_NAME, "dummy");
@@ -221,8 +224,11 @@ public class SolaceIOIT extends ITBase {
 		// Restricting these assertions to non Dataflow runners
 		if (!pipelineOptions.getRunner().equals(TestDataflowRunner.class)) {
 			assertThat(exception.getMessage(), containsString("Failed to start UnboundSolaceReader"));
-			assertThat(exception.getCause(), instanceOf(IOException.class));
-			assertThat(exception.getCause().getCause(), instanceOf(JCSMPException.class));
+			int ioExceptionIndex = ExceptionUtils.indexOfThrowable(exception, IOException.class);
+			assertThat(ioExceptionIndex, greaterThan(-1));
+			assertThat(ExceptionUtils.getRootCause(exception), instanceOf(JCSMPException.class));
+			assertEquals(ioExceptionIndex + 1, ExceptionUtils.indexOfType(exception, JCSMPException.class,
+					ioExceptionIndex));
 		}
 	}
 
@@ -240,11 +246,14 @@ public class SolaceIOIT extends ITBase {
 		// Restricting these assertions to only DirectRunner
 		if (!pipelineOptions.getRunner().equals(TestDataflowRunner.class)) {
 			assertThat(exception.getMessage(), containsString("Failed to start UnboundSolaceReader"));
-			assertThat(exception.getCause(), instanceOf(IOException.class));
-			assertThat(exception.getCause().getCause(), allOf(
+			int ioExceptionIndex = ExceptionUtils.indexOfThrowable(exception, IOException.class);
+			assertThat(ioExceptionIndex, greaterThan(-1));
+			assertThat(ExceptionUtils.getRootCause(exception), allOf(
 					instanceOf(JCSMPErrorResponseException.class),
 					hasProperty("message", containsString("Unknown Queue"))
 			));
+			assertEquals(ioExceptionIndex + 1, ExceptionUtils.indexOfType(exception,
+					JCSMPErrorResponseException.class, ioExceptionIndex));
 		}
 	}
 

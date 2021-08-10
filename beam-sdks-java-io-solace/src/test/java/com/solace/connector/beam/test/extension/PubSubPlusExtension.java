@@ -1,4 +1,4 @@
-package com.solace.connector.beam.examples.test.extension;
+package com.solace.connector.beam.test.extension;
 
 import com.solace.test.integration.semp.v2.SempV2Api;
 import com.solace.test.integration.testcontainer.PubSubPlusContainer;

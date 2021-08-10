@@ -1,11 +1,10 @@
-package com.solace.connector.beam;
+package com.solace.connector.beam.examples.test;
 
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 
-public interface SolaceIOTestPipelineOptions extends TestPipelineOptions {
-
+public interface SolaceTestOptions extends PipelineOptions {
 	@Description("Host for Solace PubSub+ broker")
 	@Default.String("tcp://localhost:55555")
 	String getPspHost();

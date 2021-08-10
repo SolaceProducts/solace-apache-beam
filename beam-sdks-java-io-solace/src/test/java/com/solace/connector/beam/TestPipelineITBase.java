@@ -1,14 +1,13 @@
 package com.solace.connector.beam;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.solace.connector.beam.test.pubsub.PublisherEventHandler;
 import com.solace.test.integration.semp.v2.SempV2Api;
 import com.solace.test.integration.semp.v2.config.model.ConfigMsgVpnClientUsername;
 import com.solace.test.integration.testcontainer.PubSubPlusContainer;
-import com.solacesystems.jcsmp.JCSMPException;
 import com.solacesystems.jcsmp.JCSMPFactory;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import com.solacesystems.jcsmp.JCSMPSession;
-import com.solacesystems.jcsmp.JCSMPStreamingPublishCorrelatingEventHandler;
 import com.solacesystems.jcsmp.XMLMessageProducer;
 import org.apache.beam.runners.dataflow.TestDataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.TestDataflowRunner;
@@ -30,11 +29,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.UUID;
-import java.util.function.BiConsumer;
 
 import static org.junit.Assert.fail;
 
-public abstract class ITBase {
+public abstract class TestPipelineITBase {
 	private static final Logger LOG = LoggerFactory.getLogger(SolaceIOIT.class);
 
 	transient TestPipeline testPipeline;
@@ -68,28 +66,12 @@ public abstract class ITBase {
 	public static void initTestProperties() throws Exception {
 		PipelineOptionsFactory.register(SolaceIOTestPipelineOptions.class);
 		sharedPipelineOptions = TestPipeline.testingPipelineOptions();
-
-		if (ITEnv.Test.RUNNER.isPresent()) {
-			String runnerName = ITEnv.Test.RUNNER.get();
-			if (runnerName.equals(TestDataflowRunner.class.getSimpleName())) {
-				sharedPipelineOptions.setRunner(TestDataflowRunner.class);
-			} else if (runnerName.equals(DirectRunner.class.getSimpleName())) {
-				sharedPipelineOptions.setRunner(DirectRunner.class);
-			} else {
-				fail(String.format("Runner %s is not supported. Please provide one of: [%s]",
-						sharedPipelineOptions.getRunner().getSimpleName(),
-						String.join(", ",
-								TestDataflowRunner.class.getSimpleName(),
-								DirectRunner.class.getSimpleName())));
-			}
-		}
+		SolaceIOTestPipelineOptions solaceOps = sharedPipelineOptions.as(SolaceIOTestPipelineOptions.class);
 
 		if (sharedPipelineOptions.getRunner().equals(TestDataflowRunner.class)) {
 			TestDataflowPipelineOptions dataflowOps = sharedPipelineOptions.as(TestDataflowPipelineOptions.class);
 
 			LOG.info(String.format("Extracting env to pipeline options for %s", TestDataflowRunner.class.getSimpleName()));
-			dataflowOps.setProject(ITEnv.Dataflow.PROJECT.get(dataflowOps.getProject()));
-			dataflowOps.setTempRoot(ITEnv.Dataflow.TMP_ROOT.get(dataflowOps.getTempRoot()));
 			dataflowOps.setGcpTempLocation(dataflowOps.getTempRoot());
 
 			LOG.info(String.format("Setting fixed pipeline options for %s", TestDataflowRunner.class.getSimpleName()));
@@ -105,14 +87,13 @@ public abstract class ITBase {
 					String.join(", ",
 							TestDataflowRunner.class.getSimpleName(),
 							DirectRunner.class.getSimpleName())));
-		} else if (ITEnv.Test.USE_TESTCONTAINERS.get("true").equalsIgnoreCase("true")) {
+		} else if (solaceOps.getUseTestcontainers()) {
 			// Testcontainers only makes sense to be used with the direct runner
 			pubSubPlusContainer = new PubSubPlusContainer();
 			pubSubPlusContainer.start();
 		}
 
 		LOG.info("Initializing PubSub+ broker credentials");
-		SolaceIOTestPipelineOptions solaceOps = sharedPipelineOptions.as(SolaceIOTestPipelineOptions.class);
 		PipelineOptionsValidator.validate(SolaceIOTestPipelineOptions.class, solaceOps);
 
 		detectedJcsmpProperties = new JCSMPProperties();
@@ -130,14 +111,13 @@ public abstract class ITBase {
 					.updateMsgVpnClientUsername("default", "default",
 					new ConfigMsgVpnClientUsername().password("default"), null);
 		} else {
-			detectedJcsmpProperties.setProperty(JCSMPProperties.HOST, ITEnv.Solace.HOST.get(solaceOps.getSolaceHost()));
-			detectedJcsmpProperties.setProperty(JCSMPProperties.USERNAME, ITEnv.Solace.USERNAME.get(solaceOps.getSolaceUsername()));
-			detectedJcsmpProperties.setProperty(JCSMPProperties.PASSWORD, ITEnv.Solace.PASSWORD.get(solaceOps.getSolacePassword()));
-			detectedJcsmpProperties.setProperty(JCSMPProperties.VPN_NAME, ITEnv.Solace.VPN.get(solaceOps.getSolaceVpnName()));
+			detectedJcsmpProperties.setProperty(JCSMPProperties.HOST, solaceOps.getPspHost());
+			detectedJcsmpProperties.setProperty(JCSMPProperties.USERNAME, solaceOps.getPspUsername());
+			detectedJcsmpProperties.setProperty(JCSMPProperties.PASSWORD, solaceOps.getPspPassword());
+			detectedJcsmpProperties.setProperty(JCSMPProperties.VPN_NAME, solaceOps.getPspVpnName());
 
-			sempV2Api = new SempV2Api(ITEnv.Solace.MGMT_HOST.get(solaceOps.getSolaceMgmtHost()),
-					ITEnv.Solace.MGMT_USERNAME.get(solaceOps.getSolaceMgmtUsername()),
-					ITEnv.Solace.MGMT_PASSWORD.get(solaceOps.getSolaceMgmtPassword()));
+			sempV2Api = new SempV2Api(solaceOps.getPspMgmtHost(), solaceOps.getPspMgmtUsername(),
+					solaceOps.getPspMgmtPassword());
 		}
 	}
 
@@ -190,58 +170,5 @@ public abstract class ITBase {
 		String timestamp = DateTimeFormat.forPattern("yyyyMMdd-HHmmss").print(DateTimeUtils.currentTimeMillis());
 		String random = UUID.randomUUID().toString().replaceAll("-", "");
 		return String.format("%s-%s-%s-%s",normalizedAppName, username, timestamp, random).toLowerCase();
-	}
-
-	static class PublisherEventHandler implements JCSMPStreamingPublishCorrelatingEventHandler {
-		@Override
-		public void responseReceivedEx(Object key) {
-			LOG.debug("Producer received response for msg: " + key);
-			if (key instanceof CallbackCorrelationKey) {
-				((CallbackCorrelationKey) key).runOnSuccess();
-			}
-		}
-
-		@Override
-		public void handleErrorEx(Object key, JCSMPException e, long timestamp) {
-			LOG.warn("Producer received error for msg: " + key + " - " + timestamp, e);
-			if (key instanceof CallbackCorrelationKey) {
-				((CallbackCorrelationKey) key).runOnFailure(e, timestamp);
-			}
-		}
-
-		@Override
-		public void handleError(String s, JCSMPException e, long l) {
-			// Deprecated, not used
-		}
-
-		@Override
-		public void responseReceived(String s) {
-			// Deprecated, not used
-		}
-	}
-
-	public static class CallbackCorrelationKey {
-		private Runnable onSuccess;
-		private BiConsumer<JCSMPException, Long> onFailure;
-
-		private void runOnSuccess() {
-			if (onSuccess != null) {
-				onSuccess.run();
-			}
-		}
-
-		private void runOnFailure(JCSMPException e, Long timestamp) {
-			if (onFailure != null) {
-				onFailure.accept(e, timestamp);
-			}
-		}
-
-		public void setOnSuccess(Runnable onSuccess) {
-			this.onSuccess = onSuccess;
-		}
-
-		public void setOnFailure(BiConsumer<JCSMPException, Long> onFailure) {
-			this.onFailure = onFailure;
-		}
 	}
 }

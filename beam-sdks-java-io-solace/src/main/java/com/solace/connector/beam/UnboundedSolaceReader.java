@@ -102,7 +102,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 
 	// refactored to prevent calls from queryQueueBytes() from advance()-ing the cursor
 	public void setUp() throws IOException {
-		try { 
+		try {
 			if (msgBusSempUtil == null) {
 				final JCSMPProperties properties = source.getSpec().jcsmpProperties();
 
@@ -334,6 +334,10 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 		LOG.debug("getSplitBacklogBytes() Reporting backlog bytes of: {} from queue {}",
 				Long.toString(backlogBytes), source.getQueueName());
 		return backlogBytes;
+	}
+
+	String getClientName() {
+		return clientName;
 	}
 
 	@Override

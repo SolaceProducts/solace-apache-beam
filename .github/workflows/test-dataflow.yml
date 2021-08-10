@@ -24,6 +24,10 @@ jobs:
     if: needs.dupe_check.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        experiments: [ "", "use_sdf_read", "use_deprecated_read" ]
+
     steps:
       - uses: actions/checkout@v2
         with:
@@ -49,14 +53,16 @@ jobs:
       - name: Install Test Support
         run: mvn clean install -f solace-integration-test-support/ -DskipTests
       - name: Build and Run Tests
-        run: mvn clean verify
-        env:
-          DATAFLOW_TEMP_ROOT: ${{ secrets.GCP_DATAFLOW_TEMP_ROOT }}
-          SOLACE_HOST: ${{ secrets.SOLACE_HOST }}
-          SOLACE_VPN_NAME: ${{ secrets.SOLACE_VPN_NAME }}
-          SOLACE_USERNAME: ${{ secrets.SOLACE_USERNAME }}
-          SOLACE_PASSWORD: ${{ secrets.SOLACE_PASSWORD }}
-          SOLACE_MGMT_HOST: ${{ secrets.SOLACE_MGMT_HOST }}
-          SOLACE_MGMT_USERNAME: ${{ secrets.SOLACE_MGMT_USERNAME }}
-          SOLACE_MGMT_PASSWORD: ${{ secrets.SOLACE_MGMT_PASSWORD }}
-          TEST_RUNNER: TestDataflowRunner
+        run: >-
+          mvn clean verify "-DbeamTestPipelineOptions=[
+          \"--runner=TestDataflowRunner\",
+          \"--experiments=${{ matrix.experiments }}\",
+          \"--tempRoot=${{ secrets.GCP_DATAFLOW_TEMP_ROOT }}\",
+          \"--pspHost=${{ secrets.SOLACE_HOST }}\",
+          \"--pspUsername=${{ secrets.SOLACE_USERNAME }}\",
+          \"--pspPassword=${{ secrets.SOLACE_PASSWORD }}\",
+          \"--pspVpnName=${{ secrets.SOLACE_VPN_NAME }}\",
+          \"--pspMgmtHost=${{ secrets.SOLACE_MGMT_HOST }}\",
+          \"--pspMgmtUsername=${{ secrets.SOLACE_MGMT_USERNAME }}\",
+          \"--pspMgmtPassword=${{ secrets.SOLACE_MGMT_PASSWORD }}\"
+          ]"
