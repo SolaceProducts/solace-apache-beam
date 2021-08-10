@@ -21,6 +21,8 @@ public class SolaceReaderStatsTest {
 	private Long currentBacklogBytes;
 	private Long checkpointReadyMessages;
 	private Long checkpointCompleteMessages;
+	private Long pollFlowRebind;
+	private Long messagesRemovedFromCheckpointQueue;
 	private Long monitorChecks;
 	private Long monitorFlowClose;
 
@@ -36,6 +38,8 @@ public class SolaceReaderStatsTest {
 		currentBacklogBytes = Math.abs(random.nextLong());
 		checkpointReadyMessages = Math.abs(random.nextLong());
 		checkpointCompleteMessages = Math.abs(random.nextLong());
+		pollFlowRebind = Math.abs(random.nextLong()) % 100;
+		messagesRemovedFromCheckpointQueue = Math.abs(random.nextLong());
 		monitorChecks = Math.abs(random.nextLong())% 100;
 		monitorFlowClose = Math.abs(random.nextLong())% 100;
 
@@ -48,6 +52,8 @@ public class SolaceReaderStatsTest {
 		solaceReaderStats.setCurrentBacklog(currentBacklogBytes);
 		solaceReaderStats.incrCheckpointReadyMessages(checkpointReadyMessages);
 		solaceReaderStats.incrCheckpointCompleteMessages(checkpointCompleteMessages);
+		for (int i = 0; i < pollFlowRebind; i++) solaceReaderStats.incrementPollFlowRebind();
+		solaceReaderStats.incrementMessagesRemovedFromCheckpointQueue(messagesRemovedFromCheckpointQueue);
 		for (int i = 0; i < monitorChecks; i++) solaceReaderStats.incrementMonitorChecks();
 		for (int i = 0; i < monitorFlowClose; i++) solaceReaderStats.incrementMonitorFlowClose();
 	}
@@ -81,6 +87,8 @@ public class SolaceReaderStatsTest {
 		assertThat(dump, containsString(String.format("\"messagesReceived\":%s", msgRecieved)));
 		assertThat(dump, containsString(String.format("\"messagesCheckpointReady\":%s", checkpointReadyMessages)));
 		assertThat(dump, containsString(String.format("\"messagesCheckpointComplete\":%s", checkpointCompleteMessages)));
+		assertThat(dump, containsString(String.format("\"pollFlowRebind\":%s", pollFlowRebind)));
+		assertThat(dump, containsString(String.format("\"messagesRemovedFromCheckpointQueue\":%s", messagesRemovedFromCheckpointQueue)));
 		assertThat(dump, containsString(String.format("\"monitorChecks\":%s", monitorChecks)));
 		assertThat(dump, containsString(String.format("\"monitorFlowClose\":%s", monitorFlowClose)));
 		assertEquals(lastReportTime, solaceReaderStats.getLastReportTime());
@@ -93,6 +101,8 @@ public class SolaceReaderStatsTest {
 		expected += "\"messagesReceived\":0,";
 		expected += "\"messagesCheckpointReady\":0,";
 		expected += "\"messagesCheckpointComplete\":0,";
+		expected += "\"pollFlowRebind\":0,";
+		expected += "\"messagesRemovedFromCheckpointQueue\":0,";
 		expected += "\"monitorChecks\":0,";
 		expected += "\"monitorFlowClose\":0}";
 

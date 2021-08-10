@@ -62,7 +62,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 	 * given {@link UnboundedReader} object will only be accessed by a single thread
 	 * at once.
 	 */
-	private java.util.Queue<Message> wait4cpQueue = new LinkedList<>();
+	private final java.util.Queue<Message> wait4cpQueue = new LinkedList<>();
 
 	private static class ActivityMonitor<T> extends Thread {
 		private UnboundedSolaceReader<T> reader;
@@ -164,7 +164,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 
 	@Override
 	public boolean advance() throws IOException {
-		LOG.debug("Advancing Solace session [{}] on queue [{}]...", this.clientName, source.getQueueName());
+		LOG.trace("Advancing Solace session [{}] on queue [{}]...", this.clientName, source.getQueueName());
 		Instant timeNow = Instant.now();
 		this.isActive.set(true);
 		readerStats.setCurrentAdvanceTime(timeNow);
@@ -200,8 +200,11 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 			try {
 				LOG.info("JCSMPException for from client [{}] : {}", this.clientName, ex.getMessage());
 				flowReceiver.close();
+				readerStats.incrementMessagesRemovedFromCheckpointQueue(wait4cpQueue.size());
+				wait4cpQueue.clear();
 				flowReceiver = session.createFlow(null, flow_prop, endpointProps);
 				flowReceiver.start();
+				readerStats.incrementPollFlowRebind();
 			} catch (JCSMPException restartEx) {
 				LOG.error("Unrecoverable JCSMPException for from client [{}] : {}", this.clientName, ex.getMessage());
 				throw new IOException(restartEx);
@@ -271,7 +274,7 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 				msg = wait4cpQueue.poll();
 			}
 		} catch (Exception e) {
-			LOG.error(String.format("Got exception while putting into the blocking queue: %s", e.toString()), e);
+			LOG.error("Got exception while putting into the blocking queue", e);
 		}
 		readerStats.setCurrentCheckpointTime(Instant.now());
 		readerStats.incrCheckpointReadyMessages((long) ackQueue.size());
@@ -312,10 +315,10 @@ class UnboundedSolaceReader<T> extends UnboundedSource.UnboundedReader<T> {
 			String queryResults = msgBusSempUtil.queryRouter(sempShowQueue, queryString);
 			queueBytes = Long.parseLong(queryResults);
 		} catch (JCSMPException e) {
-			LOG.error(String.format("Encountered a JCSMPException querying queue depth: %s", e.getMessage()), e);
+			LOG.error("Encountered a JCSMPException querying queue depth", e);
 			return UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
 		} catch (Exception e) {
-			LOG.error(String.format("Encountered a Parser Exception querying queue depth: %s", e.toString()), e);
+			LOG.error("Encountered a Parser Exception querying queue depth", e);
 			return UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
 		}
 		return queueBytes;
