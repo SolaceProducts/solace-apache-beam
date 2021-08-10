@@ -1,12 +1,11 @@
 package com.solace.connector.beam;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
-
-import org.joda.time.Instant;
 
 
 /**
@@ -25,6 +24,8 @@ class SolaceReaderStats implements Serializable {
 	private Long currentBacklogBytes;
 	private Long checkpointReadyMessages;
 	private Long checkpointCompleteMessages;
+	private Long pollFlowRebind;
+	private Long messagesRemovedFromCheckpointQueue;
 	private Long monitorChecks;
 	private Long monitorFlowClose;
 
@@ -39,6 +40,8 @@ class SolaceReaderStats implements Serializable {
 		currentBacklogBytes = 0L;
 		checkpointReadyMessages = 0L;
 		checkpointCompleteMessages = 0L;
+		pollFlowRebind = 0L;
+		messagesRemovedFromCheckpointQueue = 0L;
 		monitorChecks = 0L;
 		monitorFlowClose = 0L;
 	}
@@ -49,6 +52,14 @@ class SolaceReaderStats implements Serializable {
 
 	public void incrementMessageReceived() {
 		msgRecieved++;
+	}
+
+	public void incrementPollFlowRebind() {
+		pollFlowRebind++;
+	}
+
+	public void incrementMessagesRemovedFromCheckpointQueue(long count) {
+		messagesRemovedFromCheckpointQueue += count;
 	}
 
 	public void incrementMonitorChecks() {
@@ -87,6 +98,42 @@ class SolaceReaderStats implements Serializable {
 		checkpointCompleteMessages = checkpointCompleteMessages + count;
 	}
 
+	public Long getEmptyPoll() {
+		return emptyPoll;
+	}
+
+	public Long getMsgRecieved() {
+		return msgRecieved;
+	}
+
+	public Long getCurrentBacklogBytes() {
+		return currentBacklogBytes;
+	}
+
+	public Long getCheckpointReadyMessages() {
+		return checkpointReadyMessages;
+	}
+
+	public Long getCheckpointCompleteMessages() {
+		return checkpointCompleteMessages;
+	}
+
+	public Long getPollFlowRebind() {
+		return pollFlowRebind;
+	}
+
+	public Long getMessagesRemovedFromCheckpointQueue() {
+		return messagesRemovedFromCheckpointQueue;
+	}
+
+	public Long getMonitorChecks() {
+		return monitorChecks;
+	}
+
+	public Long getMonitorFlowClose() {
+		return monitorFlowClose;
+	}
+
 	public String dumpStatsAndClear(Boolean verbose) {
 		String results = this.dumpStats(verbose);
 		this.zeroStats();
@@ -95,13 +142,15 @@ class SolaceReaderStats implements Serializable {
 
 	public String dumpStats(Boolean verbose) {
 		String results = "{";
-		results += "\"queueBacklog\":" + Long.toString(currentBacklogBytes) + ",";
-		results += "\"emptyPolls\":" + Long.toString(emptyPoll) + ",";
-		results += "\"messagesReceived\":" + Long.toString(msgRecieved) + ",";
-		results += "\"messagesCheckpointReady\":" + Long.toString(checkpointReadyMessages) + ",";
-		results += "\"messagesCheckpointComplete\":" + Long.toString(checkpointCompleteMessages) + ",";
-		results += "\"monitorChecks\":" + Long.toString(monitorChecks) + ",";
-		results += "\"monitorFlowClose\":" + Long.toString(monitorFlowClose) + "}";
+		results += "\"queueBacklog\":" + currentBacklogBytes + ",";
+		results += "\"emptyPolls\":" + emptyPoll + ",";
+		results += "\"messagesReceived\":" + msgRecieved + ",";
+		results += "\"messagesCheckpointReady\":" + checkpointReadyMessages + ",";
+		results += "\"messagesCheckpointComplete\":" + checkpointCompleteMessages + ",";
+		results += "\"pollFlowRebind\":" + pollFlowRebind + ",";
+		results += "\"messagesRemovedFromCheckpointQueue\":" + messagesRemovedFromCheckpointQueue + ",";
+		results += "\"monitorChecks\":" + monitorChecks + ",";
+		results += "\"monitorFlowClose\":" + monitorFlowClose + "}";
 		return results;
 	}
 
