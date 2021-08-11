@@ -26,6 +26,7 @@ jobs:
 
     strategy:
       matrix:
+        beam-version: [ "", "2.20.0", "2.25.0" ]
         experiments: [ "", "use_sdf_read", "use_deprecated_read" ]
 
     steps:
@@ -36,9 +37,9 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-test-dataflow-${{ hashFiles('**/pom.xml') }}
+          key: ${{ runner.os }}-maven-test-dataflow-${{ matrix.beam-version }}-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
-            ${{ runner.os }}-maven-test-dataflow-
+            ${{ runner.os }}-maven-test-dataflow-${{ matrix.beam-version }}-
       - name: Setup JDK 8
         uses: actions/setup-java@v2
         with:
@@ -54,7 +55,10 @@ jobs:
         run: mvn clean install -f solace-integration-test-support/ -DskipTests
       - name: Build and Run Tests
         run: >-
-          mvn clean verify "-DbeamTestPipelineOptions=[
+          mvn clean verify
+          ${{ matrix.beam-version && format('-Dbeam.version={0}', matrix.beam-version) || '' }}
+          ${{ (matrix.beam-version || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/') && github.ref != 'refs/heads/master' )) && '-Dit.test=SolaceIOIT#testBasic,SolaceRecordTestIT#testBasic' || '' }}
+          "-DbeamTestPipelineOptions=[
           \"--runner=TestDataflowRunner\",
           \"--experiments=${{ matrix.experiments }}\",
           \"--tempRoot=${{ secrets.GCP_DATAFLOW_TEMP_ROOT }}\",
