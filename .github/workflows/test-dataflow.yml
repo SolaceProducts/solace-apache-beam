@@ -53,11 +53,31 @@ jobs:
           export_default_credentials: true
       - name: Install Test Support
         run: mvn clean install -f solace-integration-test-support/ -DskipTests
+      - name: Select Test Suite
+        id: test-suite-selector
+        run: |
+          if [[ -n "${{ matrix.beam-version }}" ]]; then
+            if [[ "${{ github.event_name }}" != 'push' ]] || [[ "${{ github.ref }}" =~ ^refs\/(heads\/master|tags\/.+)$ ]]; then
+              echo 'Will run expanded minimal test suite'
+              echo "::set-output name=it-tests::${EMIN_TEST_SUITE}"
+            else
+              echo 'Will run minimal test suite'
+              echo "::set-output name=it-tests::${MIN_TEST_SUITE}"
+            fi
+          elif [[ "${{ github.event_name }}" == 'push' ]] && [[ "${{ github.ref }}" == refs/heads/* ]] && [[ "${{ github.ref }}" != 'refs/heads/master' ]]; then
+            echo 'Will run minimal test suite'
+            echo "::set-output name=it-tests::${MIN_TEST_SUITE}"
+          else
+            echo 'Will run full test suite'
+          fi
+        env:
+          MIN_TEST_SUITE: SolaceIOIT#testBasic,SolaceRecordTestIT#testBasic
+          EMIN_TEST_SUITE: SolaceIOIT#testBasic,SolaceRecordTestIT#testBasic,*DataflowIT
       - name: Build and Run Tests
         run: >-
           mvn clean verify
           ${{ matrix.beam-version && format('-Dbeam.version={0}', matrix.beam-version) || '' }}
-          ${{ (matrix.beam-version || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/') && github.ref != 'refs/heads/master' )) && '-Dit.test=SolaceIOIT#testBasic,SolaceRecordTestIT#testBasic' || '' }}
+          ${{ steps.test-suite-selector.outputs.it-tests && format('-Dit.test={0}', steps.test-suite-selector.outputs.it-tests) || '' }}
           "-DbeamTestPipelineOptions=[
           \"--runner=TestDataflowRunner\",
           \"--experiments=${{ matrix.experiments }}\",
