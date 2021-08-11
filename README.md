@@ -172,18 +172,22 @@ Skip this section if you will be running the [SolaceProtoBuffRecordTest](#solace
     ```
 
 For [SolaceBigQuery](#solacebigquery) sample, to be able to use it as it is, you need to use payload of a certain schema such as:
-```
+```json
 [{"date":"2020-06-07","sym":"DUMMY","time":"22:58","lowAskSize":20,"highAskSize":790,"lowBidPrice":43.13057,"highBidPrice":44.95833,"lowBidSize":60,"highBidSize":770,"lowTradePrice":43.51274,"highTradePrice":45.41246,"lowTradeSize":0,"highTradeSize":480,"lowAskPrice":43.67592,"highAskPrice":45.86658,"vwap":238.0331}]
 ```
 
 
 ### Run a Sample
 
-#### SolaceRecordTest
+#### Direct Runner Samples
+
+These samples were designed to run locally on your machine using the Direct Runner.
+
+##### SolaceRecordTest
 
 The [SolaceRecordTest](solace-apache-beam-samples/src/main/java/com/solace/connector/beam/examples/SolaceRecordTest.java) example counts the number of each word in the received Solace message payloads and outputs the results as log messages.
 
-1. Run the SolaceRecordTest sample on a local Apache Beam runner to consume messages:
+1. Locally run the SolaceRecordTest sample on the Direct Runner to consume messages:
     ```shell script
     mvn -e compile exec:java \
        -Dexec.mainClass=com.solace.connector.beam.examples.SolaceRecordTest \
@@ -195,7 +199,23 @@ The [SolaceRecordTest](solace-apache-beam-samples/src/main/java/com/solace/conne
     grep -E "SolaceRecordTest - \*\*\*CONTRIBUTING. [0-9]+" output.log
     ```
 
-#### WindowedWordCountSolace
+##### SolaceProtoBuffRecordTest
+
+The [SolaceProtoBuffRecordTest](solace-apache-beam-samples/src/main/java/com/solace/connector/beam/examples/SolaceProtoBuffRecordTest.java) example sends and receives [Protocol Buffer](https://google.github.io/proto-lens/installing-protoc.html) generated messages. These messages are sent using JCSMP and received and outputted as log messages by an Apache Beam pipeline.
+
+1. Locally run the SolaceProtoBuffRecordTest sample on the Direct Runner to send and consume messages:
+    ```shell script
+    mvn -e compile exec:java \
+       -Dexec.mainClass=com.solace.connector.beam.examples.SolaceProtoBuffRecordTest \
+       -Dexec.args="--sql=Q/fx-001,Q/fx-002 --cip=${SOLACE_URI} --cu=${SOLACE_USERNAME} --cp=${SOLACE_PASSWORD} --vpn=${SOLACE_VPN}"
+    ```
+1. Verify that the messages are being outputted in the log.
+
+#### Google Cloud Dataflow Runner Samples
+
+These samples were designed to run on Google Cloud Dataflow and integrate with GCP products.
+
+##### WindowedWordCountSolace
 
 The [WindowedWordCountSolace](solace-apache-beam-samples/src/main/java/com/solace/connector/beam/examples/WindowedWordCountSolace.java) example counts the number of each word in the received Solace message payloads and outputs the results to Google Cloud Storage.
 
@@ -209,112 +229,103 @@ The [WindowedWordCountSolace](solace-apache-beam-samples/src/main/java/com/solac
     ```
 1. Verify that the messages were received and acknowledged by going to `$GOOGLE_STORAGE_OUTPUT` and verify that files were outputted into there.
 
-#### SolaceProtoBuffRecordTest
-
-The [SolaceProtoBuffRecordTest](solace-apache-beam-samples/src/main/java/com/solace/connector/beam/examples/SolaceProtoBuffRecordTest.java) example sends and receives [Protocol Buffer](https://google.github.io/proto-lens/installing-protoc.html) generated messages. These messages are sent using JCSMP and received and outputted as log messages by an Apache Beam pipeline.
-
-1. Run the SolaceProtoBuffRecordTest sample on a local Apache Beam runner to send and consume messages:
-    ```shell script
-    mvn -e compile exec:java \
-       -Dexec.mainClass=com.solace.connector.beam.examples.SolaceProtoBuffRecordTest \
-       -Dexec.args="--sql=Q/fx-001,Q/fx-002 --cip=${SOLACE_URI} --cu=${SOLACE_USERNAME} --cp=${SOLACE_PASSWORD} --vpn=${SOLACE_VPN}"
-    ```
-1. Verify that the messages are being outputted in the log.
-
-#### SolaceBigQuery
+##### SolaceBigQuery
 
 The [SolaceBigQuery](solace-apache-beam-samples/src/main/java/com/solace/connector/beam/examples/SolaceBigQuery.java) example receives a message from PubSub+ queue, transforms it, and then writes it to a BigQuery table. 
 
 1. Create a BigQuery table with appropriate schema:
-```
-[
- {
- 
-   "name": "date",
-   "type": "STRING",
-   "mode": "NULLABLE"
- },
- {
-   "name": "sym",
-   "type": "STRING",
-   "mode": "NULLABLE"
- },
- {
-   "name": "time",
-   "type": "STRING",
-   "mode": "NULLABLE"
- },
- {
-   "name": "lowAskSize",
-   "type": "INTEGER",
-   "mode": "NULLABLE"
- },
- {
-   "name": "highAskSize",
-   "type": "INTEGER",
-   "mode": "NULLABLE"
- },
- {
-   "name": "lowBidPrice",
-   "type": "FLOAT",
-   "mode": "NULLABLE"
- },
- {
-   "name": "highBidPrice",
-   "type": "FLOAT",
-   "mode": "NULLABLE"
- },
- {
-   "name": "lowBidSize",
-   "type": "INTEGER",
-   "mode": "NULLABLE"
- },
- {
-   "name": "highBidSize",
-   "type": "INTEGER",
-   "mode": "NULLABLE"
- },
- {
-   "name": "lowTradePrice",
-   "type": "FLOAT",
-   "mode": "NULLABLE"
- },
- {
-   "name": "highTradePrice",
-   "type": "FLOAT",
-   "mode": "NULLABLE"
- },
- {
-   "name": "lowTradeSize",
-   "type": "INTEGER",
-   "mode": "NULLABLE"
- },
- {
-   "name": "highTradeSize",
-   "type": "INTEGER",
-   "mode": "NULLABLE"
- },
- {
-   "name": "lowAskPrice",
-   "type": "FLOAT",
-   "mode": "NULLABLE"
- },
- {
-   "name": "highAskPrice",
-   "type": "FLOAT",
-   "mode": "NULLABLE"
- },
- {
-   "name": "vwap",
-   "type": "FLOAT",
-   "mode": "NULLABLE"
- }
-]
-```
+   ```json
+   [
+    {
+    
+      "name": "date",
+      "type": "STRING",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "sym",
+      "type": "STRING",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "time",
+      "type": "STRING",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "lowAskSize",
+      "type": "INTEGER",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "highAskSize",
+      "type": "INTEGER",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "lowBidPrice",
+      "type": "FLOAT",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "highBidPrice",
+      "type": "FLOAT",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "lowBidSize",
+      "type": "INTEGER",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "highBidSize",
+      "type": "INTEGER",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "lowTradePrice",
+      "type": "FLOAT",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "highTradePrice",
+      "type": "FLOAT",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "lowTradeSize",
+      "type": "INTEGER",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "highTradeSize",
+      "type": "INTEGER",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "lowAskPrice",
+      "type": "FLOAT",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "highAskPrice",
+      "type": "FLOAT",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "vwap",
+      "type": "FLOAT",
+      "mode": "NULLABLE"
+    }
+   ]
+   ```
 1. Run the SolaceBigQuery sample on Google Dataflow:
-```shell script
-mvn compile exec:java -Dexec.mainClass=com.solace.connector.beam.examples.SolaceBigQuery -Dexec.args="--sql=Q/fx-001 --cip=${SOLACE_URI} --cu=${SOLACE_USERNAME} --cp=${SOLACE_PASSWORD} --vpn=${SOLACE_VPN} --project=${GCP_PROJECT} --bigQueryProject=${BIGQUERY_PROJECT} --bigQueryDataset=${BIGQUERY_DATASET} --bigQueryTable=${BIGQUERY_TABLE} --tempLocation=${GOOGLE_STORAGE_TMP} --workerMachineType=n1-standard-2 --runner=DataflowRunner --autoscalingAlgorithm=THROUGHPUT_BASED --maxNumWorkers=4 --stagingLocation=${GOOGLE_STORAGE_STAGING}" -Pdataflow-runner
-```
+   ```shell script
+   mvn compile exec:java \
+      -Pdataflow-runner \
+      -Dexec.mainClass=com.solace.connector.beam.examples.SolaceBigQuery \
+      -Dexec.args="--sql=Q/fx-001 --cip=${SOLACE_URI} --cu=${SOLACE_USERNAME} --cp=${SOLACE_PASSWORD} --vpn=${SOLACE_VPN} --project=${GCP_PROJECT} --bigQueryProject=${BIGQUERY_PROJECT} --bigQueryDataset=${BIGQUERY_DATASET} --bigQueryTable=${BIGQUERY_TABLE} --tempLocation=${GOOGLE_STORAGE_TMP} --workerMachineType=n1-standard-2 --runner=DataflowRunner --autoscalingAlgorithm=THROUGHPUT_BASED --maxNumWorkers=4 --stagingLocation=${GOOGLE_STORAGE_STAGING}"
+   ```
 
 1. Verify that the messages were written to your BigQuery table.
 
