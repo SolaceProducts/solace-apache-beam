@@ -2,6 +2,7 @@
 [![Test (Google Dataflow)](https://github.com/SolaceProducts/solace-apache-beam/actions/workflows/test-dataflow.yml/badge.svg?branch=master)](https://github.com/SolaceProducts/solace-apache-beam/actions/workflows/test-dataflow.yml)
 [![Code Analysis (CodeQL)](https://github.com/SolaceProducts/solace-apache-beam/actions/workflows/codeql-analysis.yml/badge.svg?branch=master)](https://github.com/SolaceProducts/solace-apache-beam/actions/workflows/codeql-analysis.yml)
 [![Code Analysis (PMD)](https://github.com/SolaceProducts/solace-apache-beam/actions/workflows/pmd-analysis.yml/badge.svg?branch=master)](https://github.com/SolaceProducts/solace-apache-beam/actions/workflows/pmd-analysis.yml)
+[![Code Analysis (SpotBugs)](https://github.com/SolaceProducts/solace-apache-beam/actions/workflows/spotbugs-analysis.yml/badge.svg?branch=master)](https://github.com/SolaceProducts/solace-apache-beam/actions/workflows/spotbugs-analysis.yml)
 
 # Solace PubSub+ Connector for Beam: I/O
 
