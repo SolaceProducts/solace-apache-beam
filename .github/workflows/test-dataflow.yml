@@ -26,6 +26,7 @@ jobs:
 
     strategy:
       matrix:
+        beam-version: [ "", "2.20.0", "2.25.0" ]
         experiments: [ "", "use_sdf_read", "use_deprecated_read" ]
 
     steps:
@@ -36,9 +37,9 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-test-dataflow-${{ hashFiles('**/pom.xml') }}
+          key: ${{ runner.os }}-maven-test-dataflow-${{ matrix.beam-version }}-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
-            ${{ runner.os }}-maven-test-dataflow-
+            ${{ runner.os }}-maven-test-dataflow-${{ matrix.beam-version }}-
       - name: Setup JDK 8
         uses: actions/setup-java@v2
         with:
@@ -52,9 +53,32 @@ jobs:
           export_default_credentials: true
       - name: Install Test Support
         run: mvn clean install -f solace-integration-test-support/ -DskipTests
+      - name: Select Test Suite
+        id: test-suite-selector
+        run: |
+          if [[ -n "${{ matrix.beam-version }}" ]]; then
+            if [[ "${{ github.event_name }}" != 'push' ]] || [[ "${{ github.ref }}" =~ ^refs\/(heads\/master|tags\/.+)$ ]]; then
+              echo 'Will run expanded minimal test suite'
+              echo "::set-output name=it-tests::${EMIN_TEST_SUITE}"
+            else
+              echo 'Will run minimal test suite'
+              echo "::set-output name=it-tests::${MIN_TEST_SUITE}"
+            fi
+          elif [[ "${{ github.event_name }}" == 'push' ]] && [[ "${{ github.ref }}" == refs/heads/* ]] && [[ "${{ github.ref }}" != 'refs/heads/master' ]]; then
+            echo 'Will run minimal test suite'
+            echo "::set-output name=it-tests::${MIN_TEST_SUITE}"
+          else
+            echo 'Will run full test suite'
+          fi
+        env:
+          MIN_TEST_SUITE: SolaceIOIT#testBasic,SolaceRecordTestIT#testBasic
+          EMIN_TEST_SUITE: SolaceIOIT#testBasic,SolaceRecordTestIT#testBasic,*DataflowIT
       - name: Build and Run Tests
         run: >-
-          mvn clean verify "-DbeamTestPipelineOptions=[
+          mvn clean verify
+          ${{ matrix.beam-version && format('-Dbeam.version={0}', matrix.beam-version) || '' }}
+          ${{ steps.test-suite-selector.outputs.it-tests && format('-Dit.test={0}', steps.test-suite-selector.outputs.it-tests) || '' }}
+          "-DbeamTestPipelineOptions=[
           \"--runner=TestDataflowRunner\",
           \"--experiments=${{ matrix.experiments }}\",
           \"--tempRoot=${{ secrets.GCP_DATAFLOW_TEMP_ROOT }}\",

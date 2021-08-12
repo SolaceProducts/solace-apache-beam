@@ -27,7 +27,8 @@ jobs:
 
     strategy:
       matrix:
-        experiments: ["", "use_sdf_read", "use_deprecated_read"]
+        beam-version: [ "", "2.20.0", "2.25.0" ]
+        experiments: [ "", "use_sdf_read", "use_deprecated_read" ]
 
     steps:
       - uses: actions/checkout@v2
@@ -37,9 +38,9 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-test-direct-${{ hashFiles('**/pom.xml') }}
+          key: ${{ runner.os }}-maven-test-direct-${{ matrix.beam-version }}-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
-            ${{ runner.os }}-maven-test-direct-
+            ${{ runner.os }}-maven-test-direct-${{ matrix.beam-version }}-
       - name: Setup JDK 8
         uses: actions/setup-java@v2
         with:
@@ -48,4 +49,7 @@ jobs:
       - name: Install Test Support
         run: mvn clean install -f solace-integration-test-support/ -DskipTests
       - name: Build and Run Tests
-        run: mvn clean verify "-DbeamTestPipelineOptions=[\"--experiments=${{ matrix.experiments }}\"]"
+        run: >-
+          mvn clean verify
+          ${{ matrix.beam-version && format('-Dbeam.version={0}', matrix.beam-version) || '' }}
+          "-DbeamTestPipelineOptions=[\"--experiments=${{ matrix.experiments }}\"]"

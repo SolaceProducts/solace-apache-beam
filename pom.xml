@@ -129,6 +129,41 @@
   </dependencyManagement>
 
   <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <version>3.0.0-M5</version>
+          <configuration>
+            <rerunFailingTestsCount>5</rerunFailingTestsCount>
+          </configuration>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-failsafe-plugin</artifactId>
+          <version>3.0.0-M5</version>
+          <executions>
+            <execution>
+              <goals>
+                <goal>integration-test</goal>
+                <goal>verify</goal>
+              </goals>
+            </execution>
+          </executions>
+          <configuration>
+            <rerunFailingTestsCount>5</rerunFailingTestsCount>
+            <!--
+			  Surefire's Manifest-Only Jar isn't properly interpreted by Apache Beam when detecting "filesToStage".
+			  More info here: http://maven.apache.org/surefire/maven-failsafe-plugin/examples/class-loading.html
+			-->
+            <useManifestOnlyJar>false</useManifestOnlyJar>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -170,37 +205,6 @@
             </goals>
           </execution>
         </executions>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <version>3.0.0-M5</version>
-        <configuration>
-          <rerunFailingTestsCount>5</rerunFailingTestsCount>
-        </configuration>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-failsafe-plugin</artifactId>
-        <version>3.0.0-M5</version>
-        <executions>
-          <execution>
-            <goals>
-              <goal>integration-test</goal>
-              <goal>verify</goal>
-            </goals>
-          </execution>
-        </executions>
-        <configuration>
-          <rerunFailingTestsCount>5</rerunFailingTestsCount>
-          <!--
-			Surefire's Manifest-Only Jar isn't properly interpreted by Apache Beam when detecting "filesToStage".
-			More info here: http://maven.apache.org/surefire/maven-failsafe-plugin/examples/class-loading.html
-		  -->
-          <useManifestOnlyJar>false</useManifestOnlyJar>
-        </configuration>
       </plugin>
 
       <plugin>
