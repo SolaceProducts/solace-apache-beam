@@ -50,6 +50,22 @@ jobs:
         run: mvn clean install -f solace-integration-test-support/ -DskipTests
       - name: Build and Run Tests
         run: >-
-          mvn clean verify
+          mvn clean verify jacoco:report
           ${{ matrix.beam-version && format('-Dbeam.version={0}', matrix.beam-version) || '' }}
           "-DbeamTestPipelineOptions=[\"--experiments=${{ matrix.experiments }}\"]"
+      - name: Upload Test Artifacts
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: Test Results (${{ matrix.beam-version }}, ${{ matrix.experiments }})
+          path: |
+            **/target/failsafe-reports/*.xml
+            **/target/surefire-reports/*.xml
+            **/target/jacoco.exec
+            **/target/site/jacoco/
+      - name: Publish Test Coverage Results
+        if: github.event_name == 'pull_request' && !matrix.beam-version && !matrix.experiments # Only report this once
+        uses: madrapps/jacoco-report@v1.1
+        with:
+          path: beam-sdks-java-io-solace/target/site/jacoco/jacoco.xml
+          token: ${{ github.token }}
