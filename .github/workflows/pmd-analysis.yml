@@ -49,14 +49,14 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v2
         with:
-          name: Static Code Analysis Results
+          name: Code Analysis (PMD) Results
           path: |
-            target/pmd.xml
-            target/pmd.net.sourceforge.pmd.renderers.SarifRenderer
-            target/pmd/
-            target/site/pmd.html
+            beam-sdks-java-io-solace/target/pmd.xml
+            beam-sdks-java-io-solace/target/pmd.net.sourceforge.pmd.renderers.SarifRenderer
+            beam-sdks-java-io-solace/target/pmd/
+            beam-sdks-java-io-solace/target/site/pmd.html
       - name: Upload SARIF file
         if: success() || failure()
         uses: github/codeql-action/upload-sarif@v1
         with:
-          sarif_file: target/pmd.net.sourceforge.pmd.renderers.SarifRenderer
+          sarif_file: beam-sdks-java-io-solace/target/pmd.net.sourceforge.pmd.renderers.SarifRenderer
