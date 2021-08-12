@@ -28,6 +28,7 @@ jobs:
       - uses: actions/checkout@v2
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+          submodules: recursive
       - name: Cache local Maven repository
         uses: actions/cache@v2
         with:
@@ -40,6 +41,8 @@ jobs:
         with:
           distribution: zulu
           java-version: 8
+      - name: Install Test Support
+        run: mvn clean install -f solace-integration-test-support/ -DskipTests
       - name: Run static code analysis
         run: mvn clean compile spotbugs:check
       - name: Upload Test Artifacts
