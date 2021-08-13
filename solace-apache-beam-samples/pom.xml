@@ -91,6 +91,16 @@
 			<groupId>org.apache.beam</groupId>
 			<artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
 			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>io.confluent</groupId>
+					<artifactId>kafka-avro-serializer</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>io.confluent</groupId>
+					<artifactId>kafka-schema-registry-client</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
