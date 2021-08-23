@@ -33,6 +33,7 @@
     <beam.version>2.31.0</beam.version>
     <jcsmp.version>10.12.0</jcsmp.version>
     <slf4j.version>1.7.25</slf4j.version>
+    <pmd.version>6.37.0</pmd.version>
 
     <solace.integration.test.support.version>0.3.0</solace.integration.test.support.version>
     <solace.integration.test.support.clone.skip>false</solace.integration.test.support.clone.skip>
@@ -160,6 +161,76 @@
 			-->
             <useManifestOnlyJar>false</useManifestOnlyJar>
           </configuration>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-pmd-plugin</artifactId>
+          <version>3.14.0</version>
+          <configuration>
+            <failOnViolation>true</failOnViolation>
+            <!--
+            https://pmd.github.io/latest/pmd_userdocs_extending_rule_guidelines.html#how-to-define-rules-priority
+            Failure priority chosen based off PMD guidelines.
+            -->
+            <failurePriority>2</failurePriority>
+            <linkXRef>false</linkXRef>
+            <skipEmptyReport>false</skipEmptyReport>
+          </configuration>
+          <dependencies>
+            <dependency>
+              <groupId>net.sourceforge.pmd</groupId>
+              <artifactId>pmd-core</artifactId>
+              <version>${pmd.version}</version>
+            </dependency>
+            <dependency>
+              <groupId>net.sourceforge.pmd</groupId>
+              <artifactId>pmd-java</artifactId>
+              <version>${pmd.version}</version>
+            </dependency>
+            <dependency>
+              <groupId>net.sourceforge.pmd</groupId>
+              <artifactId>pmd-javascript</artifactId>
+              <version>${pmd.version}</version>
+            </dependency>
+            <dependency>
+              <groupId>net.sourceforge.pmd</groupId>
+              <artifactId>pmd-jsp</artifactId>
+              <version>${pmd.version}</version>
+            </dependency>
+          </dependencies>
+        </plugin>
+
+        <plugin>
+          <groupId>com.github.spotbugs</groupId>
+          <artifactId>spotbugs-maven-plugin</artifactId>
+          <version>4.3.0</version>
+          <configuration>
+            <effort>Max</effort>
+            <failOnError>true</failOnError>
+            <failThreshold>High</failThreshold>
+            <xmlOutput>true</xmlOutput>
+          </configuration>
+        </plugin>
+
+        <plugin>
+          <groupId>org.jacoco</groupId>
+          <artifactId>jacoco-maven-plugin</artifactId>
+          <version>0.8.6</version>
+          <executions>
+            <execution>
+              <goals>
+                <goal>prepare-agent</goal>
+              </goals>
+            </execution>
+            <execution>
+              <id>report</id>
+              <phase>prepare-package</phase>
+              <goals>
+                <goal>report</goal>
+              </goals>
+            </execution>
+          </executions>
         </plugin>
       </plugins>
     </pluginManagement>

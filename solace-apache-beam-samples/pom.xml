@@ -195,6 +195,22 @@
 				<artifactId>maven-failsafe-plugin</artifactId>
 			</plugin>
 
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-pmd-plugin</artifactId>
+				<configuration>
+					<skip>true</skip>
+				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>com.github.spotbugs</groupId>
+				<artifactId>spotbugs-maven-plugin</artifactId>
+				<configuration>
+					<skip>true</skip>
+				</configuration>
+			</plugin>
+
 			<!-- Ensure that the Maven jar plugin runs before the Maven
 					shade plugin by listing the plugin higher within the file. -->
 			<plugin>
