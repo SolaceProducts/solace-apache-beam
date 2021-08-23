@@ -92,4 +92,5 @@ jobs:
           hide_comments: orphaned commits
           files: |
             test-artifacts/**/failsafe-reports/**/*.xml
+            !test-artifacts/**/failsafe-reports/**/failsafe-summary.xml
             test-artifacts/**/surefire-reports/**/*.xml
