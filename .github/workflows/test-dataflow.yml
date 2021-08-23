@@ -98,3 +98,27 @@ jobs:
           path: |
             **/target/failsafe-reports/*.xml
             **/target/surefire-reports/*.xml
+
+  publish-test-results:
+    name: Publish Test Results
+    needs:
+      - build
+    if: success() || failure()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download Test Results
+        uses: actions/download-artifact@v2
+        with:
+          path: test-artifacts
+      - name: Publish Unit Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v1
+        continue-on-error: true
+        with:
+          check_name: Unit Test Results (Dataflow)
+          comment_mode: create new
+          fail_on: nothing
+          hide_comments: orphaned commits
+          files: |
+            test-artifacts/**/failsafe-reports/**/*.xml
+            test-artifacts/**/surefire-reports/**/*.xml
