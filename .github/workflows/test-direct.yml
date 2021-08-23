@@ -68,7 +68,7 @@ jobs:
         uses: madrapps/jacoco-report@v1.1
         with:
           path: beam-sdks-java-io-solace/target/site/jacoco/jacoco.xml
-          token: ${{ github.token }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   publish-test-results:
     name: Publish Test Results
