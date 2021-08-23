@@ -64,7 +64,7 @@ jobs:
             **/target/jacoco.exec
             **/target/site/jacoco/
       - name: Publish Test Coverage Results
-        if: github.event_name == 'pull_request' && !matrix.beam-version && !matrix.experiments # Only report this once
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && !matrix.beam-version && !matrix.experiments # Only report this once
         uses: madrapps/jacoco-report@v1.1
         with:
           path: beam-sdks-java-io-solace/target/site/jacoco/jacoco.xml
