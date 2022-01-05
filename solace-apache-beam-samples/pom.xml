@@ -32,7 +32,6 @@
 	<properties>
 		<beam.version>2.35.0</beam.version>
 		<solace-beam.version>1.2.0-SNAPSHOT</solace-beam.version>
-		<log4j.version>2.14.1</log4j.version>
 
 		<maven-exec-plugin.version>1.6.0</maven-exec-plugin.version>
 		<maven-jar-plugin.version>3.0.2</maven-jar-plugin.version>
@@ -41,6 +40,14 @@
 
 	<dependencyManagement>
 		<dependencies>
+			<dependency>
+				<groupId>org.apache.logging.log4j</groupId>
+				<artifactId>log4j-bom</artifactId>
+				<version>2.17.1</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+
 			<dependency>
 				<groupId>org.apache.beam</groupId>
 				<artifactId>beam-sdks-java-bom</artifactId>
@@ -66,7 +73,6 @@
 		<dependency>
 			<groupId>org.apache.logging.log4j</groupId>
 			<artifactId>log4j-slf4j-impl</artifactId>
-			<version>${log4j.version}</version>
 		</dependency>
 
 		<dependency>
