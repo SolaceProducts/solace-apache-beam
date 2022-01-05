@@ -78,7 +78,7 @@ Here is how to include the Beam I/O Connector in your project using Gradle and M
 #### Using it with Gradle
 ```groovy
 // Solace PubSub+ Connector for Beam: I/O
-compile("com.solace.connector.beam:beam-sdks-java-io-solace:1.1.0")
+compile("com.solace.connector.beam:beam-sdks-java-io-solace:1.2.0")
 ```
 
 #### Using it with Maven
@@ -87,7 +87,7 @@ compile("com.solace.connector.beam:beam-sdks-java-io-solace:1.1.0")
 <dependency>
   <groupId>com.solace.connector.beam</groupId>
   <artifactId>beam-sdks-java-io-solace</artifactId>
-  <version>1.1.0</version>
+  <version>1.2.0</version>
 </dependency>
 ```
 

@@ -30,8 +30,8 @@
   <properties>
     <repoName>SolaceProducts</repoName>
 
-    <beam.version>2.31.0</beam.version>
-    <jcsmp.version>10.12.0</jcsmp.version>
+    <beam.version>2.35.0</beam.version>
+    <jcsmp.version>10.13.0</jcsmp.version>
     <slf4j.version>1.7.25</slf4j.version>
     <pmd.version>6.37.0</pmd.version>
 
@@ -410,7 +410,7 @@
       <distributionManagement>
         <snapshotRepository>
           <id>ossrh</id>
-          <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+          <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
         </snapshotRepository>
       </distributionManagement>
       <build>
@@ -430,7 +430,7 @@
             <extensions>true</extensions>
             <configuration>
               <serverId>ossrh</serverId>
-              <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+              <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
               <!--<stagingProfileId>1d86d96a0b6bce</stagingProfileId> -->
               <autoReleaseAfterClose>true</autoReleaseAfterClose>
             </configuration>
