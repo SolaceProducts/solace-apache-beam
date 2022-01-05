@@ -21,7 +21,7 @@ jobs:
     name: Integration Tests
     needs:
       - dupe_check
-    if: needs.dupe_check.outputs.should_skip != 'true'
+    if: needs.dupe_check.outputs.should_skip != 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/master')
     runs-on: ubuntu-latest
 
     strategy:
