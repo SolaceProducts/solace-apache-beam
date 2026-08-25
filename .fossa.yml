@@ -1,0 +1,26 @@
+# FOSSA configuration for solace-apache-beam
+#
+# The scan runs from the repository root so the FOSSA CLI analyses the full
+# Maven reactor in one pass. Do NOT add per-module `--only-path` filters: the
+# Maven strategy discovers a single project at the root pom, so filtering to a
+# child module directory causes that project to be skipped and nothing is
+# uploaded.
+#
+# The root pom imports com.solace.test.integration:solace-integration-test-support-bom,
+# which is not published to Maven Central -- it is built from the
+# solace-integration-test-support git submodule. The workflow's custom_setup_script
+# initialises that submodule and installs it before the scan runs; without it
+# `mvn dependency:tree` fails and FOSSA silently falls back to shallow static
+# parsing of the root pom only.
+version: 3
+
+server: https://app.fossa.com
+
+project:
+  id: SolaceProducts_solace-apache-beam
+  name: solace-apache-beam
+
+paths:
+  exclude:
+    # Test-support tooling pulled in as a git submodule; not shipped.
+    - ./solace-integration-test-support
