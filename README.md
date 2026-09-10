@@ -1,7 +1,4 @@
-[![Test (Direct)](https://github.com/SolaceProducts/solace-apache-beam/actions/workflows/test-direct.yml/badge.svg?branch=master)](https://github.com/SolaceProducts/solace-apache-beam/actions/workflows/test-direct.yml)
-[![Test (Google Dataflow)](https://github.com/SolaceProducts/solace-apache-beam/actions/workflows/test-dataflow.yml/badge.svg?branch=master)](https://github.com/SolaceProducts/solace-apache-beam/actions/workflows/test-dataflow.yml)
-[![Code Analysis (CodeQL)](https://github.com/SolaceProducts/solace-apache-beam/actions/workflows/codeql-analysis.yml/badge.svg?branch=master)](https://github.com/SolaceProducts/solace-apache-beam/actions/workflows/codeql-analysis.yml)
-[![Code Analysis (PMD)](https://github.com/SolaceProducts/solace-apache-beam/actions/workflows/pmd-analysis.yml/badge.svg?branch=master)](https://github.com/SolaceProducts/solace-apache-beam/actions/workflows/pmd-analysis.yml)
+> **⚠️ Deprecated — Archived and read-only.** This connector is no longer maintained. Solace now recommends the official [**SolaceIO** connector](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/solace/SolaceIO.html), maintained directly in the Apache Beam project and listed in Beam's [built-in I/O connectors](https://beam.apache.org/documentation/io/connectors/). This repository is archived; issues and pull requests are disabled.
 
 # Solace PubSub+ Connector for Beam: I/O
 
